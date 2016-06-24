@@ -110,4 +110,4 @@ var args = {
     // }
 };
 
-console.log(EIG2(args));
+console.log(SequentialEIG(args));

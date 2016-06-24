@@ -1,3 +1,3 @@
 #!/bin/sh
 
-webppl --require ./devppl-oed new_coin.wppl
+webppl --require ./webppl-oed new_coin.wppl

@@ -1,0 +1,3 @@
+#!/bin/sh
+
+webppl --require ./webppl-oed ./webppl-oed/examples/sequentialCoin.wppl

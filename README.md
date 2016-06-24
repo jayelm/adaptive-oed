@@ -1,2 +1,3 @@
-# csli
-Stanford CLSI 2016 materials
+# Adaptive OED
+
+OED for adaptive experiment design.

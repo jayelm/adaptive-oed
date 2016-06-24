@@ -1,0 +1,32 @@
+// Model parameters
+var support_size = 10;
+
+// Define candidate models
+var geom1 = function(p) {
+  var geom = function() {return flip(p) ? 0 : 1+geom();};
+  return Enumerate(geom, support_size+1);
+};
+
+var geom2 = function(p) {
+  var geom = function() {return flip(p) ? 0 : 1+geom();};
+  return Enumerate(geom, support_size+1);
+};
+
+var geomNameSample = function() {
+    uniformDraw(['geom1', 'geom2']);
+};
+
+var geomFuncs = {
+    geom1: geom1,
+    geom2: geom2
+};
+
+// Execute models
+var expt = 0.2;
+var data = EIG({mNameSample: geomNameSample,
+               mFuncs:
+                models_prior: [0.5, 0.5],
+                experiments: [expt]})
+//print(data)
+data
+

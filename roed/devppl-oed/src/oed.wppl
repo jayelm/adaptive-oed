@@ -1,0 +1,191 @@
+var pam = function(arr,f) {
+    return map(f,arr)
+};
+
+var score = function(erp, x) {
+    // for backwards compatibility with webppl < 0.7
+    //return Math.max(erp.score(null, x), erp.score(x));
+    // NB: ^ isn't bullet proof
+    erp.score(x)
+}
+
+var exp = function(x) {
+    return Math.exp(x);
+}
+
+var expectation = function(erp) {
+    sum(map(function(state) { return exp(score(erp, state)) * state },
+            erp.support()))
+}
+
+var variance = function(erp) {
+    var mean = expectation(erp)
+
+    sum(map(function(state) { return exp(score(erp, state)) * (state - mean)*(state-mean) },
+            erp.support()))
+}
+
+var KL = function(P, Q) {
+    var statesP = P.support();
+    var statesQ = Q.support();
+
+    // TODO: assert that states1 = states2
+    return sum(map(
+        function(state) {
+            var scoreP = score(P, state), scoreQ = score(Q, state);
+            var probP = exp(scoreP);
+            // P(i) * log[ P(i) / Q(i) ] =  P(i) * [log(P(i) - log(Q(i)))]
+            return probP * (scoreP - scoreQ);
+        },
+        statesP));
+}
+
+// compute actual information gain
+var AIG = function(args) {
+    var mNameSample = args.mNameSample,
+        mFuncs = args.mFuncs,
+        x = args.x,
+        y = args.y;
+
+    var mPrior = Enumerate(function() {
+        return mNameSample()
+    });
+
+    var mPosterior = Enumerate(function() {
+        var mName = mNameSample(), m = mFuncs[mName];
+        var LL = m(x,y);
+        factor(LL);
+        return mName;
+    });
+    //console.log(util.serialize(mPosterior))
+
+    return KL(mPosterior, mPrior);
+}
+
+
+// notes: doesn't seem to work with incrementalMH right now
+var EIG = function(args) {
+    var mSample = args.mSample, xSample = args.xSample, ySample = args.ySample,
+        mNameSample = args.mNameSample;
+    // example: could use MH for M1 but then enumerate for M2
+    var infer = args.infer || {},
+        inferX = infer.X || Enumerate,
+        inferY = infer.Y || Enumerate,
+        inferM1 = infer.M1 || Enumerate,
+        inferM2 = infer.M2 || Enumerate,
+        mFuncs = args.mFuncs,
+        usePredictiveY = !!args.usePredictiveY;
+
+    var mPrior = inferM1(function() {
+        return mNameSample()
+    });
+
+    inferX(function() {
+        var x = xSample();
+        // wrt the above distribution on responses, what is the posterior distribution on models?
+        var KLDist = inferY(function() {
+            var y = ySample();
+            // Let's not, for now
+            if (args.usePredictiveY) {
+                var mName = mNameSample(), m = mFuncs[mName];
+                var scoreY = m(x,y);
+                factor(scoreY);
+            }
+
+            var mPosterior = inferM2(function() {
+                var m2Name = mNameSample(), m2 = mFuncs[m2Name];
+                var ll = m2(x,y);
+                factor(ll);
+                return m2Name
+            });
+
+            // This is the second sampling function which weighs according to
+            // the just-calculated posterior
+            var mNameSample2 = function() {
+                return sample(mPosterior)
+            };
+
+            var kl = KL(mPosterior, mPrior);
+            return kl;
+        });
+
+        // is there a way of getting confidence intervals around eig?
+        var EIG = expectation(KLDist);
+        factor(EIG);
+        // var VIG = variance(KLDist);
+        // return {x: x, EIG: EIG, VIG: VIG}
+        return {x: x, EIG: EIG}
+    })
+}
+
+var OED = EIG;
+
+var EIG2 = function(args) {
+    var mSample = args.mSample, xSample = args.xSample, ySample = args.ySample,
+        mNameSample = args.mNameSample;
+    // example: could use MH for M1 but then enumerate for M2
+    var infer = args.infer || {},
+        inferX = infer.X || Enumerate,
+        inferY = infer.Y || Enumerate,
+        inferM1 = infer.M1 || Enumerate,
+        inferM2 = infer.M2 || Enumerate,
+        mFuncs = args.mFuncs,
+        usePredictiveY = !!args.usePredictiveY;
+
+    var seq = args.seq || 1;
+
+    var mPrior = inferM1(function() {
+        return mNameSample();
+    });
+
+    inferX(function() {
+        // Will end up enumerating all possible combinations here
+        // TODO: Could sample a list
+        // var xs = repeat(i, xSample)
+        // Then sample a list of ys
+        // Need to find a way to recursively repeat the mPosterior update
+        var xs = repeat(seq, xSample);
+        // wrt the above distribution on responses, what is the posterior distribution on models?
+        var KLDist = inferY(function() {
+            var ys = repeat(seq, ySample);
+
+            // if (args.usePredictiveY) {
+                // var mName = mNameSample(), m = mFuncs[mName];
+                // var scoreY = m(x,y);
+                // factor(scoreY);
+            // }
+
+            var mPosterior = reduce(function(trial, currDist) {
+                var x = trial[0];
+                var y = trial[1];
+                // The model sampling function according to the current distribution
+                var currSample = function() {
+                    return sample(currDist);
+                };
+
+                // Now compute posterior given exp x, resp y
+                var updatedDist = inferM2(function() {
+                    var mName = currSample();
+                    var m = mFuncs[mName];
+                    var ll = m(x, y);
+                    factor(ll);
+                    return mName;
+                });
+
+                return updatedDist;
+            }, mPrior, zip(xs, ys));
+            // console.log("mPosterior2");
+            // console.log(mPosterior2);
+
+            var kl = KL(mPosterior, mPrior);
+            return kl;
+        });
+
+        // is there a way of getting confidence intervals around eig?
+        var EIG = expectation(KLDist);
+        factor(EIG);
+        var VIG = variance(KLDist);
+        return {x: xs, EIG: EIG, VIG: VIG};
+        // return {x: [x, x2], EIG: EIG};
+    });
+};

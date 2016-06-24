@@ -1,0 +1,261 @@
+var _ = underscore;
+
+var correlation = function(xs, ys) {
+    var mx = sum(xs)/xs.length,
+        my = sum(ys)/ys.length;
+
+    var num = sum(map2(function(x,y) { (x-mx) * (y-my)}, xs, ys));
+    var den = Math.sqrt(sum(map(function(x) { (x-mx) * (x-mx)},xs))) *
+        Math.sqrt(sum(map(function(y) { (y-my) * (y-my)},ys)));
+
+    num/den
+}
+
+var csvString = function(rows, header) {
+    var string1 = header ? _.keys(rows[0]).join(',') + '\n' : '';
+    var string2 = pam(rows, function(row) { return _.values(row).join(',')}).join('\n');
+    return string1 + string2;
+}
+
+var coinWeights = [0.01, 0.10, 0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90, 0.99];
+
+var round = function(x, n) {
+    var m = Math.pow(10,n)
+    return Math.round(x*m)/m;
+}
+
+var formatExperiment = function(x) {
+    map(function(xi) { return xi ? 'H' : 'T' }, x).join('')
+}
+
+// assumes a.length == b.length
+var arraysEqual = function(as,bs) {
+    return all(idF, map2(function(a, b) { return a === b }, as, bs))
+}
+
+// TODO: return generative model rather than distribution?
+// (then can specify inference for each model in argument to EIG)
+var biasCoin = function(sequence) {
+  Enumerate(function(){
+      var p = uniformDraw(coinWeights);
+      var sampled = repeat(sequence.length, function() { flip(p) })
+      condition(arraysEqual(sampled, sequence))
+      return flip(p)
+  })
+}
+
+var markovCoin = function(sequence) {
+    Enumerate(function(){
+        var transitionProb = uniformDraw(coinWeights);
+        var generateSequence = function(n, flipsSoFar) {
+            if (flipsSoFar.length == n) {
+                return flipsSoFar;
+            } else {
+                var lastFlip = last(flipsSoFar);
+                return generateSequence(n,
+                                        append(flipsSoFar,
+                                               flip(transitionProb) ? !lastFlip : lastFlip))
+            }
+        }
+
+        var firstCoin = flip();
+        var sampled = generateSequence(sequence.length, [firstCoin]);
+        condition(arraysEqual(sampled, sequence));
+
+        return flip(transitionProb) ? !last(sampled) : last(sampled);
+    })
+}
+
+// get expected information gain
+// this function signature is kind of ugly but webppl can't handle a distribution on functions
+// EIG({mSample: function() { uniformDraw([biasCoin, markovCoin]) },
+//      xSample: function() { repeat(4, flip) },
+//      ySample: function() { flip() }}
+//    )
+
+// get actual information gain
+// AIG(function() { uniformDraw([biasCoin, markovCoin] )},
+//     [true,true,false,true],
+//     repeat(10, function() { true }))
+
+// cache is not mem - mem memoizes function responses for given values
+// cache is for deterministic functions
+var fairSingle = cache(function(sequence) {
+    Enumerate(function() {
+        return flip()
+    })
+})
+
+var fairGroup = function(sequence, counts) {
+    var yDist = fairSingle(sequence);
+    var numHeads = counts[0],
+        numTails = counts[1];
+
+    var p = Math.exp(score(yDist, true));
+
+    return score(Binomial({n: numHeads + numTails, p: p}), numHeads)
+}
+
+
+var biasSingle = cache(function(sequence) {
+    Enumerate(function() {
+        var p = uniformDraw(coinWeights);
+        var sampled = repeat(sequence.length, function() { flip(p) })
+        condition(arraysEqual(sampled, sequence))
+        return flip(p);
+    })
+});
+
+var biasGroup = function(sequence, counts) {
+    var yDist = biasSingle(sequence);
+    var numHeads = counts[0],
+        numTails = counts[1];
+
+    var p = Math.exp(score(yDist, true));
+
+    return score(Binomial({n: numHeads + numTails, p: p}), numHeads)
+}
+
+
+var markovSingle = cache(function(sequence) {
+    Enumerate(function() {
+        var transitionProb = uniformDraw(coinWeights);
+
+        var generateSequence = function(n, flipsSoFar) {
+            if (flipsSoFar.length == n) {
+                return flipsSoFar;
+            } else {
+                var lastFlip = last(flipsSoFar);
+                return generateSequence(n,
+                                        append(flipsSoFar,
+                                               flip(transitionProb) ? !lastFlip : lastFlip))
+            }
+        }
+        var firstCoin = flip();
+        var sampled = generateSequence(sequence.length, [firstCoin]);
+        condition(arraysEqual(sampled, sequence));
+        return flip( transitionProb ) ? !last(sampled) : last(sampled);
+    })
+});
+
+// DECIDE: x includes experiment setting AND measurement properties?
+// type is x -> y -> logp
+var markovGroup = function(sequence, counts) {
+    var yDist = markovSingle(sequence);
+    var numHeads = counts[0],
+        numTails = counts[1];
+
+    var n = numHeads + numTails;
+    var p = Math.exp(score(yDist, true));
+
+    return score(Binomial({n: n, p: p}), numHeads)
+}
+
+
+// biasCoinN({sequence: [true,true,true,true], N: 1},
+//           [false])
+
+
+// TODO: add convenience method for converting a model of a single subject response to
+// multiple subject responses
+
+util.seedRNG(3);
+
+// console.log('N,seq,eig\n')
+
+var empiricalCounts = [
+    [8,16], // hhhh
+    [4,16], // hhht
+    [6,16], // ...
+    [8,18],
+    [5,15],
+    [10,12],
+    [8,12],
+    [12,11],
+    [10,10],
+    [12,9],
+    [12,8],
+    [20,5],
+    [16,4],
+    [15,7],
+    [21,5],
+    [11,9]];
+
+var experiments = Enumerate(function() { repeat(4, flip)}).support().reverse();
+
+// NB: must run with webppl's binomial scoring approximation disabled
+// var dist = map2(
+//     function(data, experiment) {
+//         var N = sum(data);
+//         var mNameSample =function() { uniformDraw(['fairGroup', 'biasGroup']) };
+//         var mFuncs = {fairGroup: fairGroup, biasGroup: biasGroup, markovGroup: markovGroup};
+
+
+//         var eig = EIG({
+//             mNameSample: mNameSample,
+//             mFuncs: mFuncs,
+//             xSample: function() { experiment },
+//             ySample: function() { var numHeads = randomInteger(N + 1);
+//                                   return [numHeads, N - numHeads];
+//                                 },
+//             infer: {
+//                 Y: function(g) { Enumerate(g) }
+//             }
+
+//         }).support()[0].EIG;
+
+//         var aig = AIG({mNameSample: mNameSample,
+//                        mFuncs: mFuncs,
+//                        x: experiment,
+//                        y: data
+//                       });
+
+//         return {experiment: formatExperiment(experiment),
+//                 N: N,
+//                 eig: round(eig, 4),
+//                 aig: round(aig, 4)
+//                };
+//     },
+//     empiricalCounts,
+//     experiments);
+
+// console.table(dist)
+
+// 'R2 = ' + round(Math.pow(correlation(_.pluck(dist, 'eig'), _.pluck(dist, 'aig')), 2),
+//                 4)
+
+// var xs = Enumerate(function() { repeat(4, flip)}).support();
+
+// // in lexical graphical order
+
+
+var comparisons = {
+    'fair-bias': function() { uniformDraw(['fairGroup', 'biasGroup'])},
+    'bias-markov': function() { uniformDraw(['biasGroup', 'markovGroup'])},
+    'threeway': function() { uniformDraw(['fairGroup', 'biasGroup', 'markovGroup'])}
+};
+
+var mFuncs = {fairGroup: fairGroup, biasGroup: biasGroup, markovGroup: markovGroup};
+
+console.log('comparison,sequence,eig')
+mapObject(function(comparisonName, mNameSample) {
+    var n = 20;
+    var supp = EIG({
+        mNameSample: mNameSample,
+        mFuncs: mFuncs,
+        xSample: function() { repeat(4,flip) },
+        ySample: function() { var numHeads = randomInteger(n + 1);
+                              return [numHeads, n - numHeads];
+                            }
+    }).support();
+
+    var rowsFormatted = pam(supp, function(row) {
+        return {comparison: comparisonName,
+                experiment: formatExperiment(row.x),
+                eig: row.EIG}
+    })
+
+    console.log(csvString(rowsFormatted))
+
+    return ''
+}, comparisons)

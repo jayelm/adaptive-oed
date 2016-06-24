@@ -1,0 +1,87 @@
+// Categorical priors
+var skill_prior     = [0.01, 0.10, 0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.80, 0.90, 0.99];
+var skill_prior_pmf = [1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00, 1.00];
+
+var decision_prior     = [0.000, 10.000];
+var decision_prior_pmf = [0.250,  0.750];
+
+var categorical = function(v,p) {return v[discrete(p)];}
+
+// Bettor's decision making model
+var bet_erp = function(num, win) {
+  var bet = function() {
+    var test_skill = categorical(skill_prior, skill_prior_pmf);
+    var test_decision = categorical(decision_prior, decision_prior_pmf);
+    factor((binomial(test_skill, num) == win) ? 0 : -Infinity);
+    return flip(Math.exp(test_decision*test_skill)/
+                (Math.exp(test_decision*test_skill) + Math.exp(test_decision*(1-test_skill))));
+  };
+
+  return Enumerate(bet);
+};
+
+// Arrogant reasoner model
+var arrogant_reasoner_erp = function(params) {
+  var l_num = params[0]; var l_win = params[1];
+  var t_num = params[2]; var t_bet = params[3]; 
+
+  var arrogant_reasoner = function() {
+    var test_skill = categorical(skill_prior, skill_prior_pmf);
+    factor((binomial(test_skill, l_num) == l_win) ? 0 : -Infinity);
+    return test_skill;
+  };
+  
+  return Enumerate(arrogant_reasoner);
+};
+
+// Deferent reasoner model
+var deferent_reasoner_erp = function(params) {
+  var l_num = params[0]; var l_win = params[1];
+  var t_num = params[2]; var t_bet = params[3]; 
+
+  var deferent_reasoner = function() {
+    var t_bet_tf = (t_bet == 1);
+    var test_skill = categorical(skill_prior, skill_prior_pmf);
+    var t_win = binomial(test_skill, t_num);
+    var test_bet = sample(bet_erp(t_num, t_win));
+    factor((test_bet == t_bet_tf) ? 0 : -Infinity);
+    return test_skill;
+  };
+  
+  return Enumerate(deferent_reasoner);
+};
+
+// Observant reasoner model
+var observant_reasoner_erp = function(params) {
+  var l_num = params[0]; var l_win = params[1];
+  var t_num = params[2]; var t_bet = params[3]; 
+
+  var observant_reasoner = function() {
+    var t_bet_tf = (t_bet == 1);
+    var test_skill = categorical(skill_prior, skill_prior_pmf);
+    var t_win = binomial(test_skill, t_num);
+    var test_bet = sample(bet_erp(t_num, t_win))
+    factor(((binomial(test_skill, l_num) == l_win) && 
+            (test_bet == t_bet_tf)) ? 0 : -Infinity);
+    return test_skill;
+  };
+  
+  return Enumerate(observant_reasoner);
+};
+
+// List of experiment parameters 
+var l_direct_obs = [5];
+var l_direct_win = [0,1,2,3,4,5];
+var l_social_obs = [2,5,10,30];
+var l_social_bet = [1];
+
+var expt_list = oed.list_product([l_direct_obs, l_direct_win, 
+                                  l_social_obs, l_social_bet]);
+
+// Execute the models and compute the information gain
+var data = OED({models: [arrogant_reasoner_erp, deferent_reasoner_erp, 
+                         observant_reasoner_erp], 
+                experiments: expt_list})
+//print(data)
+data
+

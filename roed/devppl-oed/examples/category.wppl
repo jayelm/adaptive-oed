@@ -1,0 +1,198 @@
+var _ = underscore;
+
+var allExperiments = oedData.categoryExperiments;
+
+var booleanize = function(exp){
+    var helper = function(ar) {
+        return pam(ar, function(e) { e == 1})
+    }
+
+    return {as: map(helper, exp.as),
+            bs: map(helper, exp.bs)}
+};
+
+var _ms78 = {as: [[1, 1, 1, 0], [1, 0, 1, 0], [1, 0, 1, 1], [1, 1, 0, 1], [0, 1, 1, 1]],
+            bs: [[1, 1, 0, 0], [0, 1, 1, 0], [0, 0, 0, 1], [0, 0, 0, 0]]};
+
+var ms78 = booleanize(_ms78);
+
+var _opt = {as: [[0,0,0,1], [0,0,1,1], [1,1,0,0], [1,1,1,0], [1,1,1,1]],
+            bs: [[0,1,0,0], [0,1,1,0], [1,0,0,0], [1,0,1,0]]}
+
+var opt = booleanize(_opt);
+
+// swaps first A and first B of opt
+var _dummyx = {as: [[0,1,0,0], [0,0,1,1], [1,1,0,0], [1,1,1,0], [1,1,1,1]],
+               bs: [[0,0,0,1], [0,1,1,0], [1,0,0,0], [1,0,1,0]]};
+
+var dummyx = booleanize(_dummyx);
+
+var log = function(x) {
+    return Math.log(x)
+}
+
+var exp = function(x) {
+    return Math.exp(x)
+}
+
+var pam = function(a,f) {
+    return map(f,a)
+}
+
+var vectorAdd = function(xs,ys) {
+    return map2(function(x,y) { x + y}, xs,ys)
+}
+
+var columnSum = function(ar) {
+    return reduce(vectorAdd,
+                  ar[0],
+                  ar.slice(1))
+}
+
+var arrayEq = function(x,y,_i) {
+    var nx = x.length;
+    var ny = y.length;
+    if (nx !== ny) {
+        return false
+    }
+
+    var loop = function(i) {
+        if (i > nx) {
+            return true
+        } else {
+            return x[i] !== y[i] ? false : loop(i+1)
+        }
+    };
+
+    return loop(0)
+}
+
+var objects = Enumerate(function() { repeat(4,flip) }).support();
+
+var prototypeSingle = cache(function(x) {
+    var as = x.as, bs = x.bs,
+        recall = append(as, bs);
+
+    var recallStrings = map(function(obj) { obj.join(',') }, recall);
+
+    // returns true if x is in the training set, false if not
+    var isRecall = (function(obj) {
+        var objString = obj.join(',');
+        return _.contains(recallStrings, objString);
+    });
+
+    var g = function() {
+        var weights = repeat(4, function() { uniform(0, 1) });
+        var alpha = uniform(0,5);
+        var bias = uniform(-1, 1);
+
+        pam(objects,
+            function(object) {
+                // a function of dimension index
+                var dimensionalEvidenceForA = function(i) {
+                    var matchingObjects = filter(function(x) { return x[i] == object[i] },
+                                                 recall);
+                    var n = matchingObjects.length;
+                    var nA = filter(function(x) { return as.indexOf(x) > -1 },
+                                    matchingObjects).length;
+                    var nB = n - nA;
+                    return weights[i] * (nA - nB)/n;
+                }
+
+                // factor: log-probability that object is an A
+                // prob is 1 / (1 + exp(-alpha * sum_j[w_j * I_j]))
+                // log prob is -log(1 + exp(-alpha * sum_j[w_j * I_j]))
+
+                var totalEvidence = sum(map(dimensionalEvidenceForA,[0,1,2,3])) + (isRecall(object) ? bias : 0);
+
+                var prob = 1 / (1 + exp(-alpha * totalEvidence));
+
+                //factor(log(prob));
+
+                return prob;
+            })
+    };
+
+    var numSamples = 5000;
+    // do it with MH here so that inference doesn't reach inside this function
+    var dist = MH(g, numSamples).support();
+
+    // get expected distribution on responses
+    return pam(columnSum(dist), function(x) { return x / numSamples });
+})
+
+var exemplarSingle = cache(function(x) {
+    var as = x.as, bs = x.bs;
+    var g = function() {
+        var weights = repeat(4, function() { uniform(0, 1) });
+
+        pam(objects,
+            function(object) {
+                var similarity = function(x,y) {
+                    var dimMatches = map2(function(xi,yi) {
+                        return xi == yi
+                    },x,y);
+                    var probs = map2(function(b,p) {
+                        return b ? 1 : p
+                    },dimMatches, weights);
+                    return product(probs);
+                };
+
+
+                // sum of similarities to a
+                var ssa = sum(map(function(a) { return similarity(object, a) },
+                                  as));
+
+                // sum of similarities to b
+                var ssb = sum(map(function(b) { return similarity(object, b) },
+                                  bs));
+
+                var prob = ssa / (ssa + ssb);
+
+                return prob;
+            });
+    };
+    var numSamples = 5000;
+    var dist = MH(g, numSamples).support();
+
+    // get expected distribution on responsesp
+    return pam(columnSum(dist), function(x) { return x / numSamples });
+})
+
+var groupify = function(model) {
+    // responses is an object {n: n, numAs: [nA1, nA2, ...]}
+    // e.g.,
+    return function(x, responses) {
+        var yDist = model(x);
+        var n = responses.n;
+
+        var LL = sum(map2(function(p, k) { return score(Binomial({n: n, p: p}), k) },
+                       yDist,
+                       responses.numAs))
+
+        return LL;
+    }
+}
+
+var exemplarGroup = groupify(exemplarSingle);
+var prototypeGroup = groupify(prototypeSingle);
+
+var mFuncs = {exemplarGroup: exemplarGroup, prototypeGroup: prototypeGroup};
+
+// read the list of experiments to run from command line args
+var argv = _.defaults(minimist.call(null, process.argv),
+                      {experimentRange: ''})
+var experimentRange = argv.experimentRange.split(',');
+var experimentsToRun = allExperiments.slice(experimentRange[0] - 1,
+                                            experimentRange[1]);
+
+var dist = EIG({mNameSample: function() { uniformDraw(['exemplarGroup','prototypeGroup']) },
+                mFuncs: {exemplarGroup: exemplarGroup, prototypeGroup: prototypeGroup},
+                xSample: function() { uniformDraw([ms78, opt]) },
+                ySample: function() { return {n: 1, numAs: repeat(16, function() { return flip() ? 1 : 0 }) } },
+                infer: {
+                    Y: function(g) { Enumerate(g) }
+                }
+               });
+
+JSON.stringify(dist.support())

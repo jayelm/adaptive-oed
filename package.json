@@ -1,0 +1,28 @@
+{
+  "name": "adaptive-oed",
+  "version": "0.0.1",
+  "description": "Adaptive optimal experiment design.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jayelm/adaptive-oed.git"
+  },
+  "keywords": [
+    "oed"
+  ],
+  "author": "Jesse Mu",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/jayelm/adaptive-oed/issues"
+  },
+  "homepage": "https://github.com/jayelm/adaptive-oed#readme",
+  "devDependencies": {
+    "grunt": "^1.0.1"
+  },
+  "dependencies": {
+    "webppl": "^0.8.1"
+  }
+}

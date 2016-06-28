@@ -1,9 +1,9 @@
 require('./webppl.min.js');
 var prompt = require('prompt');
 
-var makeSkeleton = function(infraStr) {
+var makeSkeleton = function(infraThunk) {
     return {
-        infrastructure: infraStr,
+        infrastructure: infraThunk,
 
         initializePrior: function() {
             // The initial prior defined traditionally in args.mNameSample
@@ -57,7 +57,6 @@ var compileSkeleton = function(skeleton) {
     var suggestSrc = webppl.compile(infraStr + suggestStr);
     var updateSrc = webppl.compile(infraStr + updateStr);
     var initialSrc = webppl.compile(infraStr + initialStr);
-    // console.log(initialSrc);
 
     var handleRunError = function(e) {
         // Just log it for now?
@@ -105,7 +104,6 @@ var compileSkeleton = function(skeleton) {
     aoed.update = update;
 
     // Actually call the initialize source code to get the first model prior
-    // var initialPrior = eval.call({}, initialSrc)(runner);
     var initialPrior = eval.call({}, initialSrc)(runner);
     initialPrior({}, function(store, returnValue) {
         aoed.initialPrior = returnValue;
@@ -160,6 +158,8 @@ var AOED = function(infraThunk) {
         infraThunk.call && infraThunk.apply)) {
         throw "argument is not a function";
     }
+
+    // Check if the string is good to go
     var infraStr = infraThunk.toString();
     if (infraStr.indexOf("args") === -1) {
         throw "No `args` string detected in thunk, " +
@@ -167,7 +167,7 @@ var AOED = function(infraThunk) {
               "something useful.";
     }
 
-    var skeleton = makeSkeleton(infraStr);
+    var skeleton = makeSkeleton(infraThunk);
     return compileSkeleton(skeleton);
 };
 

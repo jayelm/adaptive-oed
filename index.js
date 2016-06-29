@@ -12,14 +12,30 @@ var makeSkeleton = function(infraThunk) {
         },
 
         suggestExperiment: function() {
-            var mPrior = globalStore.mPrior;
+            var mPrior = globalStore.mPrior,
+                usePredictiveY = globalStore.usePredictiveY;
 
             return maxEIG({
                 mPrior: mPrior,
                 mFuncs: args.mFuncs,
                 xSample: args.xSample,
                 ySample: args.ySample,
-                infer: args.infer
+                infer: args.infer,
+                usePredictiveY: usePredictiveY
+            });
+        },
+
+        suggestAll: function() {
+            var mPrior = globalStore.mPrior,
+                usePredictiveY = globalStore.usePredictiveY;
+
+            return EIG({
+                mPrior: mPrior,
+                mFuncs: args.mFuncs,
+                xSample: args.xSample,
+                ySample: args.ySample,
+                infer: args.infer,
+                usePredictiveY: usePredictiveY
             });
         },
 
@@ -50,6 +66,7 @@ var getThunkBody = function(thunk) {
 var compileSkeleton = function(skeleton) {
     var infraStr = getThunkBody(skeleton.infrastructure);
     var suggestStr = getThunkBody(skeleton.suggestExperiment);
+    var suggestAllStr = getThunkBody(skeleton.suggestAll);
     var updateStr = getThunkBody(skeleton.updateBeliefs);
     var initialStr = getThunkBody(skeleton.initializePrior);
 
@@ -57,6 +74,7 @@ var compileSkeleton = function(skeleton) {
     var suggestSrc = webppl.compile(infraStr + suggestStr);
     var updateSrc = webppl.compile(infraStr + updateStr);
     var initialSrc = webppl.compile(infraStr + initialStr);
+    var suggestAllSrc = webppl.compile(infraStr + suggestAllStr);
 
     var handleRunError = function(e) {
         // Just log it for now?
@@ -78,9 +96,15 @@ var compileSkeleton = function(skeleton) {
 
     var aoed = {};
 
-    var suggest = function(mPrior) {
+    // XXX: If you need to add any more arguments just switch to using an args
+    // object. Right now this maintains backwards compatibility with other
+    // suggest calls, since if usePredictiveY is unspecified, !!undefined is
+    // false. Then make sure to update other calls to suggest in
+    // examples/runCLI
+    var suggest = function(mPrior, usePredictiveY) {
         var globalStore = {
-            mPrior: mPrior
+            mPrior: mPrior,
+            usePredictiveY: usePredictiveY
         };
         var _code = eval.call({}, suggestSrc)(runner);
         var res = {};
@@ -88,6 +112,18 @@ var compileSkeleton = function(skeleton) {
         return res.returnValue;
     };
     aoed.suggest = suggest;
+
+    var suggestAll = function(mPrior, usePredictiveY) {
+        var globalStore = {
+            mPrior: mPrior,
+            usePredictiveY: usePredictiveY
+        };
+        var _code = eval.call({}, suggestAllSrc)(runner);
+        var res = {};
+        _code(globalStore, makeStoreFunc(res), '');
+        return res.returnValue;
+    };
+    aoed.suggestAll = suggestAll;
 
     var update = function(mPrior, x, y) {
         // TODO: Make functor for $suggest, $update?
@@ -112,13 +148,13 @@ var compileSkeleton = function(skeleton) {
     return aoed;
 };
 
-var runCLI = function(aoed) {
+var runCLI = function(aoed, usePredictiveY) {
     var repeatUpdate = function(prior) {
         console.log("Prior:");
         console.log(prior);
 
-        var expt = aoed.suggest(prior);
-        console.log("Suggested experiment:");
+        var expt = aoed.suggest(prior, usePredictiveY);
+        console.log("Suggested experiments:");
         console.log(expt);
 
         var x = expt.x;
@@ -136,6 +172,44 @@ var runCLI = function(aoed) {
                 return 1;
             }
             var y = JSON.parse(result.expt);
+            var res = aoed.update(prior, x, y);
+            console.log("AIG: " + res.AIG);
+            repeatUpdate(res.mPosterior);
+        });
+    };
+
+    repeatUpdate(aoed.initialPrior);
+};
+
+// Like runCLI but doesn't force you to choose the best experiment
+var runCLIAll = function(aoed, usePredictiveY) {
+    var repeatUpdate = function(prior) {
+        console.log("Prior:");
+        console.log(prior);
+
+        var expt = aoed.suggestAll(prior, usePredictiveY);
+        console.log("Suggested experiments:");
+        console.log(expt.support());
+
+        prompt.start();
+        prompt.get([
+            {
+                name: 'expt',
+                message: 'Enter experiment',
+                type: 'string'
+            },
+            {
+                name: 'res',
+                message: 'Enter experiment result',
+                type: 'string'
+            }
+        ], function(err, result) {
+            if (err) {
+                console.log(err);
+                return 1;
+            }
+            var x = JSON.parse(result.expt);
+            var y = JSON.parse(result.res);
             var res = aoed.update(prior, x, y);
             console.log("AIG: " + res.AIG);
             repeatUpdate(res.mPosterior);
@@ -173,5 +247,6 @@ var AOED = function(infraThunk) {
 
 module.exports = {
     AOED: AOED,
-    runCLI: runCLI
+    runCLI: runCLI,
+    runCLIAll: runCLIAll,
 };

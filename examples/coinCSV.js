@@ -1,4 +1,5 @@
 var adaptive = require('..');
+var _ = require('underscore');
 
 var infrastructure = function() {
     var coinWeights = [
@@ -77,10 +78,6 @@ var infrastructure = function() {
         return score(Binomial({n: n, p: p}), numHeads);
     };
 
-    var nullGroup = function(sequence, counts) {
-        // uniformdraw
-    };
-
     var numParticipants = 20;
 
     var args = {
@@ -108,7 +105,87 @@ var infrastructure = function() {
 };
 
 var aoed = adaptive.AOED(infrastructure);
+var N = 6;
+var numParticipants = 20;
 
-adaptive.runCLI(aoed);
+// Imagine we set up responses perfectly adhering to a biased model.
+// X is the experiment (a boolean array)
+var biasedResponse = function(x) {
+    // Calculate number of true responses.
+    var trueFlips = 0;
+    for (var i = 0; i < x.length; i++) {
+        trueFlips += x[i];
+    }
+    var nTrue = (trueFlips / x.length) * numParticipants;
+    return [nTrue, numParticipants - nTrue];
+};
 
-// adaptive.runCLIAll(aoed);
+var fairResponse = function(x) {
+    // Always 10T, 10F
+    return [numParticipants / 2, numParticipants / 2];
+};
+
+// Convert a boolean array expeirment to TTTT/FFFF
+var expToString = function(x) {
+    return x.toString()
+        .replace(/true/g, 'T')
+        .replace(/false/g, 'F')
+        .replace(/,/g, '');
+};
+
+
+// Different canned response types
+var responseTypes = {
+    biased: biasedResponse,
+    fair: fairResponse
+    // markov: markovResponse
+};
+
+var yPriors = ['ignorance', 'predictive'];
+
+// CSV header
+console.log('prior,responseType,trial,pFair,pBias,pMarkov,x,EIG,response,y,AIG');
+
+for (var priorIndex = 0; priorIndex < yPriors.length; priorIndex++) {
+    var yPrior = yPriors[priorIndex];
+
+    for (var rT in responseTypes) {
+        if (!responseTypes.hasOwnProperty(rT)) continue;
+
+        var responseFunc = responseTypes[rT];
+        // Get initial prior
+        var prior = aoed.initialPrior;
+
+        for (var i = 1; i < N + 1; i++) {
+            // Get beliefs
+            var beliefs = {};
+            _.values(prior.params.dist).forEach(function(b) {
+                beliefs[b.val] = b.prob.toFixed(4);
+            });
+
+            // Get suggested experiment information
+            var expt = aoed.suggest(prior, (yPrior == 'predictive'));
+            var x = expt.x,
+                EIG = expt.EIG.toFixed(4),
+                KLDist = expt.KLDist;
+
+            // Get canned y response
+            var y = responseFunc(x);
+
+            // Loop through KLDist and log each row to CSV
+            KLDist.support().forEach(function(kld) {
+                var nTrue = kld.y[0];
+                var row = [
+                    yPrior, rT, i,
+                    beliefs.fairGroup, beliefs.biasGroup, beliefs.markovGroup,
+                    // Response is based on number of heads, so 0-index
+                    expToString(x), EIG, y[0], nTrue, kld.val.toFixed(4)
+                ];
+                console.log(row.join());
+            });
+
+            // Update beliefs
+            prior = aoed.update(prior, expt.x, y).mPosterior;
+        }
+    }
+}

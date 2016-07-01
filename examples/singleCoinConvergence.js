@@ -101,7 +101,7 @@ var logRow = function(args) {
     }
 };
 
-var strategies = ['ignorance', 'predictive', 'random'];
+var strategies = ['ignorance', 'predictive', 'random', 'bestFour'];
 var nullArr = [
     adaptive.AOED(makeInfrastructure({nullGroup: false})),
     adaptive.AOED(makeInfrastructure({nullGroup: true}))
@@ -169,10 +169,21 @@ for (var stratIndex = 0; stratIndex < strategies.length; stratIndex++) {
                 });
 
                 // Get information for every experiment
-                if (strat == 'random') {
+                if (strat === 'random') {
                     var expts = aoed.suggestAll(prior, (strat == 'predictive')).support();
                     // Ignore EIGs and pick a random experiment
                     var bestExpt = sampleArr(expts);
+                } else if (strat === 'bestFour') {
+                    // Randomly sample from the most important experiments
+                    var expts = aoed.suggestAll(prior, (strat == 'predictive')).support();
+                    var topFour = _.filter(expts, function(expt) {
+                        var xStr = expt.x.toString();
+                        return (xStr === 'true,true,true,true' ||
+                                xStr === 'false,false,false,false' ||
+                                xStr === 'true,false,true,false' ||
+                                xStr === 'false,true,false,true');
+                    });
+                    var bestExpt = sampleArr(topFour);
                 } else {
                     var expts = aoed.suggestAll(prior, (strat == 'predictive')).support();
                     // Loop through and get max experiment

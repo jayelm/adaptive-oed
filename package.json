@@ -30,7 +30,7 @@
   "dependencies": {
     "prompt": "^1.0.0",
     "webppl": "github:probmods/webppl",
-    "webppl-oed": "github:jayelm/webppl-oed#20160627-jayelm-adaptive"
+    "webppl-oed": "github:mhtess/webppl-oed#20160627-jayelm-adaptive"
   },
   "engines": {
     "node": ">= 0.10.0"

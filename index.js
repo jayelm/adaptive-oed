@@ -3,40 +3,62 @@ var prompt = require('prompt');
 
 var makeSkeleton = function(infraThunk) {
     return {
-        infrastructure: infraThunk,
+        common: infraThunk,
+
+        // Functionality that I want in all AOED methods
+        commonUtils: function() {
+            var getBestExpt = function(expts) {
+                return reduce(function(expt, currMax) {
+                    return (expt.EIG > currMax.EIG) ? expt : currMax;
+                }, {x: null, EIG: -Infinity, KLDist: null}, expts);
+            };
+        },
 
         initializePrior: function() {
-            // The initial prior defined traditionally in args.mNameSample
-            var inferM1 = args.inferM1 || Enumerate;
-            return inferM1(args.mNameSample);
+            // The initial prior implied by args.M
+            // TODO: If oed switches to reusable construct prior function, then
+            // switch this too
+            var M = args.M,
+                inferM1 = args.inferM1 || Enumerate;
+
+            return inferM1(function() {
+                var m = M();
+                return {name: m.name, func: m};
+            });
         },
 
         suggestExperiment: function() {
             var mPrior = globalStore.mPrior,
-                usePredictiveY = globalStore.usePredictiveY;
+                usePredictiveY = globalStore.usePredictiveY,
+                returnKL = globalStore.returnKL;
 
-            return maxEIG({
+            var eigs = EIG({
                 mPrior: mPrior,
-                mFuncs: args.mFuncs,
-                xSample: args.xSample,
-                ySample: args.ySample,
+                X: args.X,
+                Y: args.Y,
                 infer: args.infer,
-                usePredictiveY: usePredictiveY
+                usePredictiveY: usePredictiveY,
+                returnKL: returnKL
             });
+
+            return getBestExpt(eigs.support());
         },
 
         suggestAll: function() {
             var mPrior = globalStore.mPrior,
-                usePredictiveY = globalStore.usePredictiveY;
+                usePredictiveY = globalStore.usePredictiveY,
+                returnKL = globalStore.returnKL;
 
-            return EIG({
+            var eigs = EIG({
                 mPrior: mPrior,
-                mFuncs: args.mFuncs,
-                xSample: args.xSample,
-                ySample: args.ySample,
+                X: args.X,
+                Y: args.Y,
                 infer: args.infer,
-                usePredictiveY: usePredictiveY
+                usePredictiveY: usePredictiveY,
+                returnKL: returnKL
             });
+
+            return eigs.support();
         },
 
         updateBeliefs: function() {
@@ -46,7 +68,6 @@ var makeSkeleton = function(infraThunk) {
 
             return updatePosterior({
                 mPrior: mPrior,
-                mFuncs: args.mFuncs, // Should be defined in infrastructure
                 x: x,
                 y: y,
                 infer: args.infer // infrastructure
@@ -64,22 +85,26 @@ var getThunkBody = function(thunk) {
 };
 
 var compileSkeleton = function(skeleton) {
-    var infraStr = getThunkBody(skeleton.infrastructure);
+    // Common to all functions
+    var commonInfraStr = getThunkBody(skeleton.common);
+    var commonUtilsStr = getThunkBody(skeleton.commonUtils);
+    var commonStr = commonInfraStr + commonUtilsStr;
+
+    // Individual functions
     var suggestStr = getThunkBody(skeleton.suggestExperiment);
     var suggestAllStr = getThunkBody(skeleton.suggestAll);
     var updateStr = getThunkBody(skeleton.updateBeliefs);
     var initialStr = getThunkBody(skeleton.initializePrior);
 
-    // Concat common infrastructure with the other objects
-    var suggestSrc = webppl.compile(infraStr + suggestStr);
-    var updateSrc = webppl.compile(infraStr + updateStr);
-    var initialSrc = webppl.compile(infraStr + initialStr);
-    var suggestAllSrc = webppl.compile(infraStr + suggestAllStr);
+    // Concat common with the other objects
+    var suggestSrc = webppl.compile(commonStr + suggestStr);
+    var updateSrc = webppl.compile(commonStr + updateStr);
+    var initialSrc = webppl.compile(commonStr + initialStr);
+    var suggestAllSrc = webppl.compile(commonStr + suggestAllStr);
 
     var handleRunError = function(e) {
         // Just log it for now?
-        console.log("ERROR");
-        console.log(e);
+        throw e;
     };
     // XXX: Switch .cli to .web when using browser
     var runner = util.trampolineRunners.cli(handleRunError);
@@ -101,10 +126,11 @@ var compileSkeleton = function(skeleton) {
     // suggest calls, since if usePredictiveY is unspecified, !!undefined is
     // false. Then make sure to update other calls to suggest in
     // examples/runCLI
-    var suggest = function(mPrior, usePredictiveY) {
+    var suggest = function(mPrior, args) {
         var globalStore = {
             mPrior: mPrior,
-            usePredictiveY: usePredictiveY
+            usePredictiveY: !!args.usePredictiveY,
+            returnKL: !!args.returnKL
         };
         var _code = eval.call({}, suggestSrc)(runner);
         var res = {};
@@ -113,10 +139,11 @@ var compileSkeleton = function(skeleton) {
     };
     aoed.suggest = suggest;
 
-    var suggestAll = function(mPrior, usePredictiveY) {
+    var suggestAll = function(mPrior, args) {
         var globalStore = {
             mPrior: mPrior,
-            usePredictiveY: usePredictiveY
+            usePredictiveY: !!args.usePredictiveY,
+            returnKL: !!args.returnKL
         };
         var _code = eval.call({}, suggestAllSrc)(runner);
         var res = {};
@@ -148,12 +175,12 @@ var compileSkeleton = function(skeleton) {
     return aoed;
 };
 
-var runCLI = function(aoed, usePredictiveY) {
+var runCLI = function(aoed, args) {
     var repeatUpdate = function(prior) {
         console.log("Prior:");
         console.log(prior);
 
-        var expt = aoed.suggest(prior, usePredictiveY);
+        var expt = aoed.suggest(prior, args);
         console.log("Suggested experiments:");
         console.log(expt);
 
@@ -187,7 +214,7 @@ var runCLIAll = function(aoed, usePredictiveY) {
         console.log("Prior:");
         console.log(prior);
 
-        var expt = aoed.suggestAll(prior, usePredictiveY);
+        var expt = aoed.suggestAll(prior, args);
         console.log("Suggested experiments:");
         console.log(expt.support());
 
@@ -234,8 +261,8 @@ var AOED = function(infraThunk) {
     }
 
     // Check if the string is good to go
-    var infraStr = infraThunk.toString();
-    if (infraStr.indexOf("args") === -1) {
+    var commonStr = infraThunk.toString();
+    if (commonStr.indexOf("args") === -1) {
         throw "No `args` string detected in thunk, " +
               "or reflection isn't working. Check that your thunk's toString returns " +
               "something useful.";

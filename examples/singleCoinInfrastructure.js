@@ -8,42 +8,32 @@ var infrastructure = function() {
             all(idF, map2(function(a, b) { return a === b; }, as, bs));
     };
 
-    var fairSingle = cache(function(sequence) {
+    // Groupify: Model -> Model
+    var groupify = function(m) {
+        var gm = function(x, y) {
+            var yDist = m(x.sequence);
+            var p = Math.exp(yDist.score(true));
+            return Binomial({n: x.n, p: p}).score(y)
+        }
+        return Model(m.name.replace('Single', 'Group'), gm);
+    };
+
+    var fairSingle = Model('fairSingle', cache(function(sequence) {
         Enumerate(function() {
             return flip();
         });
-    });
+    }));
 
-    var fairGroup = function(sequence, counts) {
-        var yDist = fairSingle(sequence);
-        var numHeads = counts[0],
-            numTails = counts[1];
-
-        var p = Math.exp(score(yDist, true));
-
-        return score(Binomial({n: numHeads + numTails, p: p}), numHeads);
-    };
-
-    var biasSingle = cache(function(sequence) {
+    var biasSingle = Model('biasSingle', cache(function(sequence) {
         Enumerate(function() {
             var p = uniformDraw(coinWeights);
             var sampled = repeat(sequence.length, function() { return flip(p); });
             condition(arraysEqual(sampled, sequence));
             return flip(p);
         });
-    });
+    }));
 
-    var biasGroup = function(sequence, counts) {
-        var yDist = biasSingle(sequence);
-        var numHeads = counts[0],
-            numTails = counts[1];
-
-        var p = Math.exp(score(yDist, true));
-
-        return score(Binomial({n: numHeads + numTails, p: p}), numHeads);
-    };
-
-    var markovSingle = cache(function(sequence) {
+    var markovSingle = Model('markovSingle', cache(function(sequence) {
         Enumerate(function() {
             var transitionProb = uniformDraw(coinWeights);
 
@@ -62,41 +52,23 @@ var infrastructure = function() {
             condition(arraysEqual(sampled, sequence));
             return flip( transitionProb ) ? !last(sampled) : last(sampled);
         });
-    });
+    }));
 
-    var markovGroup = function(sequence, counts) {
-        var yDist = markovSingle(sequence);
-        var numHeads = counts[0],
-            numTails = counts[1];
-
-        var n = numHeads + numTails;
-        var p = Math.exp(score(yDist, true));
-
-        return score(Binomial({n: n, p: p}), numHeads);
-    };
+    var fairGroup = groupify(fairSingle);
+    var biasGroup = groupify(biasSingle);
+    var markovGroup = groupify(markovSingle);
 
     var numParticipants = 1;
 
     var args = {
-        mNameSample: function() {
-            return uniformDraw(['biasGroup', 'fairGroup', 'markovGroup']);
-            // return categorical({
-                // vs: ['biasGroup', 'fairGroup', 'markovGroup'],
-                // ps: [0.6861392352852966, 0.000011677789526658295, 0.3138490869251765]
-            // });
+        M: function() {
+            return uniformDraw([fairGroup, biasGroup, markovGroup]);
         },
-        mFuncs: {
-            biasGroup: biasGroup,
-            fairGroup: fairGroup,
-            markovGroup: markovGroup
+        X: function() {
+            return {n: numParticipants, sequence: repeat(4, flip)};
         },
-        xSample: function() {
-            return repeat(4, flip);
-        },
-        ySample: function() {
-            var numHeads = randomInteger(numParticipants + 1);
-            var numTails = numParticipants - numHeads;
-            return [numHeads, numTails];
+        Y: function() {
+            return randomInteger(numParticipants + 1);
         }
     };
 };
@@ -111,42 +83,32 @@ var nullInfrastructure = function() {
             all(idF, map2(function(a, b) { return a === b; }, as, bs));
     };
 
-    var fairSingle = cache(function(sequence) {
+    // Groupify: Model -> Model
+    var groupify = function(m) {
+        var gm = function(x, y) {
+            var yDist = m(x.sequence);
+            var p = Math.exp(yDist.score(true));
+            return Binomial({n: x.n, p: p}).score(y)
+        }
+        return Model(m.name.replace('Single', 'Group'), gm);
+    };
+
+    var fairSingle = Model('fairSingle', cache(function(sequence) {
         Enumerate(function() {
             return flip();
         });
-    });
+    }));
 
-    var fairGroup = function(sequence, counts) {
-        var yDist = fairSingle(sequence);
-        var numHeads = counts[0],
-            numTails = counts[1];
-
-        var p = Math.exp(score(yDist, true));
-
-        return score(Binomial({n: numHeads + numTails, p: p}), numHeads);
-    };
-
-    var biasSingle = cache(function(sequence) {
+    var biasSingle = Model('biasSingle', cache(function(sequence) {
         Enumerate(function() {
             var p = uniformDraw(coinWeights);
             var sampled = repeat(sequence.length, function() { return flip(p); });
             condition(arraysEqual(sampled, sequence));
             return flip(p);
         });
-    });
+    }));
 
-    var biasGroup = function(sequence, counts) {
-        var yDist = biasSingle(sequence);
-        var numHeads = counts[0],
-            numTails = counts[1];
-
-        var p = Math.exp(score(yDist, true));
-
-        return score(Binomial({n: numHeads + numTails, p: p}), numHeads);
-    };
-
-    var markovSingle = cache(function(sequence) {
+    var markovSingle = Model('markovSingle', cache(function(sequence) {
         Enumerate(function() {
             var transitionProb = uniformDraw(coinWeights);
 
@@ -165,44 +127,28 @@ var nullInfrastructure = function() {
             condition(arraysEqual(sampled, sequence));
             return flip( transitionProb ) ? !last(sampled) : last(sampled);
         });
+    }));
+
+    var fairGroup = groupify(fairSingle);
+    var biasGroup = groupify(biasSingle);
+    var markovGroup = groupify(markovSingle);
+
+    var nullGroup = Model('nullGroup', function(x, y) {
+        // Ignore x, return equal probability for all y in the possible repsonses range
+        return RandomInteger({n: numParticipants + 1}).score(y);
     });
-
-    var markovGroup = function(sequence, counts) {
-        var yDist = markovSingle(sequence);
-        var numHeads = counts[0],
-            numTails = counts[1];
-
-        var n = numHeads + numTails;
-        var p = Math.exp(score(yDist, true));
-
-        return score(Binomial({n: n, p: p}), numHeads);
-    };
-
 
     var numParticipants = 1;
 
-    // Equiprobable for all possible counts. Ignore input arguments
-    var nullGroup = function(sequence, counts) {
-        return score(RandomInteger({n: numParticipants + 1}), counts[0]);
-    };
-
     var args = {
-        mNameSample: function() {
-            return uniformDraw(['biasGroup', 'fairGroup', 'markovGroup', 'nullGroup']);
+        M: function() {
+            return uniformDraw([fairGroup, biasGroup, markovGroup, nullGroup]);
         },
-        mFuncs: {
-            biasGroup: biasGroup,
-            fairGroup: fairGroup,
-            markovGroup: markovGroup,
-            nullGroup: nullGroup
+        X: function() {
+            return {n: numParticipants, sequence: repeat(4, flip)};
         },
-        xSample: function() {
-            return repeat(4, flip);
-        },
-        ySample: function() {
-            var numHeads = randomInteger(numParticipants + 1);
-            var numTails = numParticipants - numHeads;
-            return [numHeads, numTails];
+        Y: function() {
+            return randomInteger(numParticipants + 1);
         }
     };
 };

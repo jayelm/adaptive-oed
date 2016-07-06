@@ -3,12 +3,13 @@ var makeInfrastructure = require('./coinInfrastructure.js');
 
 var infrastructure = makeInfrastructure({nullGroup: true});
 
-console.log(infrastructure.toString());
-
-var usePredictiveY = false;
+var args = {
+    usePredictiveY: false,
+    returnKL: true
+}
 
 var aoed = adaptive.AOED(infrastructure);
 
-adaptive.runCLI(aoed, usePredictiveY);
+adaptive.runCLI(aoed, args);
 
 // adaptive.runCLIAll(aoed);

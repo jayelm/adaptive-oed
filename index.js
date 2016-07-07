@@ -7,6 +7,7 @@ var makeSkeleton = function(infraThunk) {
 
         // Functionality that I want in all AOED methods
         commonUtils: function() {
+            // TODO: If oed implements getBestExpt, then this is redundant
             var getBestExpt = function(expts) {
                 return reduce(function(expt, currMax) {
                     return (expt.EIG > currMax.EIG) ? expt : currMax;

@@ -4,27 +4,41 @@ var makeInfrastructure = require('./singleCoinInfrastructure.js');
 
 // Problem with 1: fair is indistinguishbale from the null model
 
-var nsubs = 50;
+// Number of subjects per (crossed) condition
+var nsubs = 200;
+// Number of trials to run for each subject
 var N = 50;
 var numParticipants = 1;
 
 // TODO seed math.random
 var sampleResponse = function(x) {
     // e.g. [.9, .1]
-    return (Math.random() < x[0]) ? [1, 0] : [0, 1];
+    return (Math.random() < x[0]) ? 1: 0;
     // Sample according to the length 2 array of probabilities
+    // This is still an array for legacy reasons (before refactor-interfaces)
 };
 
 // Imagine we set up responses perfectly adhering to a biased model.
 // X is the experiment (a boolean array)
+
+var biasedResponseDict = {
+    '0': [0.13419002529223334, 0.8658099747077667],
+    '1': [0.33256219864868247, 0.6674378013513177],
+    '2': [0.5, 0.5],
+    '3': [0.6674378013513177, 0.33256219864868247],
+    '4': [0.8658099747077667, 0.13419002529223334],
+};
+
 var biasedResponse = function(x) {
     // Calculate number of true responses.
     var trueFlips = 0;
     for (var i = 0; i < x.length; i++) {
         trueFlips += x[i];
     }
-    var nTrue = (trueFlips / x.length) * numParticipants;
-    return sampleResponse([nTrue, numParticipants - nTrue]);
+    var probs = biasedResponseDict[trueFlips.toString()];
+    var numHeads = numParticipants * probs[0];
+    var numTails = numParticipants * probs[1];
+    return sampleResponse([numHeads, numTails]);
 };
 
 var fairResponse = function(x) {
@@ -62,7 +76,7 @@ var markovResponse = function(x) {
 var allResponses = function() {
     var responses = [];
     for (var i = 0; i < numParticipants + 1; i++) {
-        resposnes.push([i, numParticipants - i]);
+        responses.push([i, numParticipants - i]);
     }
     return responses;
 };
@@ -165,19 +179,21 @@ for (var stratIndex = 0; stratIndex < strategies.length; stratIndex++) {
                 // Get beliefs
                 var beliefs = {};
                 _.values(prior.params.dist).forEach(function(b) {
-                    beliefs[b.val] = b.prob.toFixed(4);
+                    beliefs[b.val.name] = b.prob.toFixed(4);
                 });
 
                 // Get information for every experiment
+                var expts = aoed.suggestAll(prior, {
+                    usePredictiveY: (strat === 'predictive'),
+                    KLDist: false
+                });
                 if (strat === 'random') {
-                    var expts = aoed.suggestAll(prior, (strat == 'predictive')).support();
                     // Ignore EIGs and pick a random experiment
                     var bestExpt = sampleArr(expts);
                 } else if (strat === 'bestFour') {
-                    // Randomly sample from the most important experiments
-                    var expts = aoed.suggestAll(prior, (strat == 'predictive')).support();
+                    // Sample from top four only
                     var topFour = _.filter(expts, function(expt) {
-                        var xStr = expt.x.toString();
+                        var xStr = expt.x.sequence.toString();
                         return (xStr === 'true,true,true,true' ||
                                 xStr === 'false,false,false,false' ||
                                 xStr === 'true,false,true,false' ||
@@ -185,19 +201,14 @@ for (var stratIndex = 0; stratIndex < strategies.length; stratIndex++) {
                     });
                     var bestExpt = sampleArr(topFour);
                 } else {
-                    var expts = aoed.suggestAll(prior, (strat == 'predictive')).support();
                     // Loop through and get max experiment
                     var bestExpt = _.reduce(expts, function(bestExpt, expt) {
                         return (expt.EIG > bestExpt.EIG) ? expt : bestExpt;
-                    }, {x: null, EIG: 0, KLDist: null});
-
-                    // Get y response to the best experiment
+                    }, {x: null, EIG: -Infinity, KLDist: null});
                 }
 
-                var bestX = bestExpt.x,
-                    bestEIG = bestExpt.EIG.toFixed(4),
-                    bestKLDist = bestExpt.KLDist;
-
+                var bestX = bestExpt.x.sequence,
+                    bestEIG = bestExpt.EIG.toFixed(4);
 
                 // Has it converged?
                 var converged = (
@@ -214,10 +225,6 @@ for (var stratIndex = 0; stratIndex < strategies.length; stratIndex++) {
                 } else if (rT === 'fair') {
                     pBest = beliefs.fairGroup;
                 }
-
-                // if (converged) {
-                    // console.log("Converged after", i, "iterations");
-                // }
 
                 var y = responseFunc(bestX);
 
@@ -239,7 +246,7 @@ for (var stratIndex = 0; stratIndex < strategies.length; stratIndex++) {
                     pBest: pBest,
                     x: expToString(bestX),
                     EIG: bestEIG,
-                    response: y[0],
+                    response: y,
                     AIG: updateResults.AIG.toFixed(4),
                     cumAIG: cumAIG.toFixed(4),
                     converged: converged * 1

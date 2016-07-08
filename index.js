@@ -20,7 +20,7 @@ var makeSkeleton = function(infraThunk) {
             // TODO: If oed switches to reusable construct prior function, then
             // switch this too
             var M = args.M,
-                inferM1 = args.inferM1 || Enumerate;
+                inferM1 = (args.infer && args.infer.M1) || Enumerate;
 
             return inferM1(function() {
                 var m = M();

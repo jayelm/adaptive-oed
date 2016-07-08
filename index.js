@@ -7,12 +7,6 @@ var makeSkeleton = function(infraThunk) {
 
         // Functionality that I want in all AOED methods
         commonUtils: function() {
-            // TODO: If oed implements getBestExpt, then this is redundant
-            var getBestExpt = function(expts) {
-                return reduce(function(expt, currMax) {
-                    return (expt.EIG > currMax.EIG) ? expt : currMax;
-                }, {x: null, EIG: -Infinity, KLDist: null}, expts);
-            };
         },
 
         initializePrior: function() {
@@ -179,7 +173,8 @@ var compileSkeleton = function(skeleton) {
 var runCLI = function(aoed, args) {
     var repeatUpdate = function(prior) {
         console.log("Prior:");
-        console.log(prior);
+        // TODO: Verbose flag - if verbose, print the entire prior
+        console.log(prior.MAP());
 
         var expt = aoed.suggest(prior, args);
         console.log("Suggested experiments:");

@@ -52,19 +52,15 @@ var infrastructure = function() {
         // TODO: This should return a MODEL (MODEL WRAPPER)!
         var dagModel = function(x, y) {
             if (x.type === 'structure') {
-                // console.log('structure');
-                // console.log(aList[x.child]);
-                // console.log(x.child);
-                // console.log(x.parent);
                 // If the current list has the correct weights
                 // Any way to make this faster than these linear checks...hash?
-                if (y && aList[x.child].includes(x.parent) ||
-                    !y && !aList[x.child].includes(x.parent)) {
-                    // console.log("Yup");
-                    return 0;
-                } else {
-                    return -Infinity; // Problem: are judgments a bit noisy?
-                }
+                // To make this delta, p should be 1
+                // Let's say 0.9, instead
+                var compatible = (
+                    y && aList[x.child].includes(x.parent) ||
+                    !y && !aList[x.child].includes(x.parent)
+                );
+                return Bernoulli({p: 0.9}).score(compatible);
             } else {
                 // assert x.type === 'strength'
                 // score by strength
@@ -134,10 +130,10 @@ var infrastructure = function() {
 
     // Sample an experiment
     var xSample = function() {
-        // var xType = uniformDraw(['structure', 'strength']);
+        // Then later, marignal
+        // var xType = uniformDraw(['structure', 'prior']);
         var xType = 'structure';
         if (xType === 'structure') {
-            // Please let there be sample w/o replacement later...
             var child = nodes[randomInteger(nodes.length)];
             var possParents = _.without(nodes, child);
             var parent = possParents[randomInteger(possParents.length)];
@@ -146,12 +142,15 @@ var infrastructure = function() {
                 child: child,
                 parent: parent
             };
+        } else if (xType === 'prior') {
+            var node = nodes[randomInteger(nodes.length)];
+            return {
+                type: xType,
+                node: node
+            };
         } else {
-
+            return null;
         }
-        // Should incorporate nodes here, obviously
-        // Pick a random relationship
-        // return x;
     };
 
     // TODO:
@@ -164,22 +163,16 @@ var infrastructure = function() {
 
 
     // Verify DAG? Check if loops (depth first search)
-    var ySample = function() {
-        // Can we optimize this away (OED)?
-        return flip();
-        // var yType = uniformDraw(['structure', 'strength']);
-        // if (yType === 'structure') {
-
-        // } else {
-
-        // }
-        // return y;
+    var ySample = function(x) {
+        if (x.type === 'structure') {
+            return flip();
+        } else if (x.type === 'prior') {
+            console.log(notimplemented);
+        } else if (x.type === 'conditional') {
+            console.log(notimplemented);
+        }
     };
 
-    // repeat(400, mSample);
-    // var mDist = Infer({method: 'MCMC', kernel: 'MH', samples: 100000, burn: 5000, verbose: true}, mSample);
-    // sample(mDist);
-    // Enumerate(xSample);
     var args = {
         M: mSample,
         X: xSample,
@@ -198,8 +191,8 @@ var infrastructure = function() {
                 Infer({
                     method: 'MCMC',
                     kernel: 'MH',
-                    samples: 1000,
-                    burn: 500,
+                    samples: 500,
+                    burn: 100,
                     // verbose: true
                 }, thunk);
             },

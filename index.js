@@ -205,14 +205,14 @@ var runCLI = function(aoed, args) {
 };
 
 // Like runCLI but doesn't force you to choose the best experiment
-var runCLIAll = function(aoed, usePredictiveY) {
+var runCLIAll = function(aoed, args) {
     var repeatUpdate = function(prior) {
         console.log("Prior:");
         console.log(prior);
 
         var expt = aoed.suggestAll(prior, args);
         console.log("Suggested experiments:");
-        console.log(expt.support());
+        console.log(expt);
 
         prompt.start();
         prompt.get([

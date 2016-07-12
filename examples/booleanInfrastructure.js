@@ -1,22 +1,20 @@
 var infrastructure = function() {
     var _ = underscore;
 
-    // Q: how many DAGs possible for 3 variables?
-    // There are 25 DAGs possible for 3 variables. We wish to learn this structure.`
+    // TODO: This also assumes discrete judgments (for now), that come from
+    // probs
+    var discrete = true;
+    var probs = [0, 0.5];
+    var weights = [-1, 1];
 
-    // Questions about the presence of causal relationships inform structure.
-    // Questions about the strength of causal relationships inform weights \in [0, 1].
-
-    // A "generate all DAG aLists" function?
-
-    // Cache the enumeration of all possible DAGs. Sample weights from the DAGs.
-    // Model sampling funciton: pick a DAG, pick some weights. Give the option to
-    // specify priors if you believe some weights to be true: likely-first
-    // enumeration would be nice
-
-    // Seems like OED can handle two sets of experiments? Just stratify the
-    // response sample and the scoring function (i.e. if (type is exp1) return
-    // scoreexp1, else)
+    // var probs = [
+        // 0, 0.01, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99, 1
+    // ];
+    // var weights = [
+        // -0.01, -0.05, -0.1, -0.2, -0.3, -0.4, -0.5, -0.6, -0.7, -0.8, -0.9,
+        // -0.95, -0.99, -1, 0, 0.01, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7,
+        // 0.8, 0.9, 0.95, 0.99, 1
+    // ];
 
     var shuffle = function(toShuffle, shuffled) {
         if (toShuffle.length === 0) {
@@ -43,31 +41,133 @@ var infrastructure = function() {
         return filter(f, arr);
     };
 
+    var ecuder = function(arr, init, f) {
+        return reduce(f, init, arr);
+    };
+
+    var err = function(msg) {
+        console.log(msg);
+        console.log(error);
+    };
+
+    // Calculate P(A).
+    // Because we're restricting ourselves to n = 3, exact inference is
+    // possible.
+    // XXX: cache might overflow, we're caching a LOT of things
+    // XXX: What happens when w0 = 1, w1 = -1? Output is 1, is that correct?
+    var marginal = dp.cache(function(aList, aWeights, aPriors, a) {
+        // Lemmer & Gossnik RNOR. Works associatively in the cases of noisy ORs.
+        // FIXME: Consider dependent clauses (see RNOR paper)
+        // FIXME: This doesn't work associatively for noisy ANDS! Use
+        // something like Yuille (2008)
+        // Also works for the cases where parents are empty and parents have
+        // length 1
+        var initw0 = aPriors[a];
+        var parentsAndWeights = zip(aList[a], aWeights[a]);
+        return ecuder(parentsAndWeights, initw0, function(pandw, w0) {
+            var parent = pandw[0];
+            var w1 = pandw[1];
+
+            var parentProb = marginal(aList, aWeights, aPriors, parent);
+
+            // Component 1: a happens in the absence of parentProb (c = 0)
+            var cmp1 = w0;
+            // Component 2: probabiltiy of w manifesting in presence of parentProb,
+            // either generative or preventive
+            var cmp2 = (w1 >= 0) ?
+                1 - ((1 - w0) * (1 - w1)) : // Noisy-or
+                w0 * (1 + w1); // Noisy-nand
+
+            return cmp1 * (1 - parentProb) + cmp2 * parentProb;
+        });
+    });
+
+    // Calculate P(A | B). Same XXXs as above.
+    // TODO: This needs to work forwards and backwards
+    // Need a more general formula for this.
+    // Although inefficient, in the n = 3 case, this is reasonable: just
+    // calculate using joint probability and marginal formulas:
+    // P(C | B) = P(B, C) / P(B)
+    // P(B | C) = P(B, C) / P(C)
+    // ^ Marginal, and P(B, C) = \sum_{A}P(A, B, C) = \prod P(X_i | Parents(X_i))
+    // In the backwards (explanation) direction:
+    // P(B | A):
+    // check if A's ancestry contains B.
+    // If yes, then since this is a DAG, you need to work backwards.
+    // Otherwise, you need to work forwards. It could be that indeed B's
+    // ancestry doesn't contain A either, but the propagation will simply not
+    // condition on the evidence, which is fine.
+    var conditional = dp.cache(function(aList, aWeights, aPriors, a, b, bTruth) {
+        var initw0 = aPriors[a];
+        var parentsAndWeights = zip(aList[a], aWeights[a]);
+        return ecuder(parentsAndWeights, initw0, function(pandw, w0) {
+            var parent = pandw[0];
+            var w1 = pandw[1];
+
+            var parentProb =
+                // Current parent is B, and we're conditioning on B = true.
+                // probability of the parent occurring <- 1.
+                (pandw[0] === b && bTruth) ? 1 :
+                // Current parent is B and condition on B = false.
+                // Probability of the parent occurring <- 0
+                (pandw[1] === b && !bTruth) ? 0 :
+                // Otherwise calculate conditional recursively, propagating the
+                // condition of b/bTruth
+                conditional(aList, aWeights, aPriors, pandw[0], b, bTruth);
+
+            // OPTIMIZE: calculating both components even if parentProb is 1 or 0.
+            var cmp1 = w0;
+            var cmp2 = (w1 >= 0) ?
+                1 - ((1 - w0) * (1 - w1)) :
+                w0 * (1 + w1);
+
+            return cmp1 * (1 - parentProb) + cmp2 * parentProb;
+        });
+    });
+
     // a DAG functor, taking in an adjacency list (structure), a set of weights
     // (strength), and returning a function that scores experiments according to responses.
-    var DAG = function(aList, aWeights) {
+    var DAG = function(aList, aWeights, aPriors) {
         // aList is an object connecting vertices
         // aList is a set of weights for each connection.
-        // You need to assert that the weights are the same as the list
-        // TODO: This should return a MODEL (MODEL WRAPPER)!
         var dagModel = function(x, y) {
+            // TODO: Is this the right way of encoding human noisiness (by
+            // making the parameter estimates of these models themselves
+            // noisy?)
             if (x.type === 'structure') {
-                // If the current list has the correct weights
                 // Any way to make this faster than these linear checks...hash?
+                var pIndex = aList[x.child].indexOf(x.parent);
+                var compatible = (
+                    // "No effect", and no relationship in parents
+                    (y === 0) && (pIndex === -1) ||
+                    // Generative effect - positive weight in parents
+                    (y === 1) && (pIndex !== -1) && aWeights[x.child][pIndex] >= 0 ||
+                    // Preventive effect - - negative weight in parents
+                    (y === -1) && (pIndex !== -1) && aWeights[x.child][pIndex] < 0
+                );
                 // To make this delta, p should be 1
                 // Let's say 0.9, instead
-                var compatible = (
-                    y && aList[x.child].includes(x.parent) ||
-                    !y && !aList[x.child].includes(x.parent)
-                );
                 return Bernoulli({p: 0.9}).score(compatible);
+            } else if (x.type === 'marginal') {
+                var marginalMAP = marginal(aList, aWeights, aPriors, x.a);
+                return Gaussian({
+                    mu: marginalMAP,
+                    sigma: 0.1
+                }).score(y);
+            } else if (x.type === 'conditional') {
+                var conditionalMAP = conditional(
+                    aList, aWeights, aPriors,
+                    x.a, x.b, x.bTruth
+                );
+                return Gaussian({
+                    mu: conditionalMAP,
+                    sigma: 0.1
+                }).score(y);
             } else {
-                // assert x.type === 'strength'
-                // score by strength
-                // It's a prior?
+                err("unknown type " + x.type);
             }
         };
-        var mName = JSON.stringify([aList, aWeights]);
+        var mName = JSON.stringify([aList, aWeights, aPriors]);
         return Model(mName, dagModel);
     };
 
@@ -90,6 +190,11 @@ var infrastructure = function() {
             }));
         });
 
+
+        // Sample from noisy-or vs noisy-nand
+        // inhibit
+        // TODO: when identified joint causes, sample from noisy-or vs noisy-nand
+
         var unsorted = _.object(orderedNodes, edges);
 
         var sortedNodes = sort(orderedNodes);
@@ -110,66 +215,120 @@ var infrastructure = function() {
         // weights
         var aWeights = pamObject(aList, function(from, tos) {
             return pam(tos, function(t) {
-                // Uniform prior on weights?
-                sample(Uniform({a: 0, b: 1}));
+                if (discrete) {
+                    return uniformDraw(weights);
+                } else {
+                    // Uniform prior on weights?...but they should be negative?
+                    // Alternatively, scale a Beta distribution
+                    return sample(Uniform({a: -1, b: 1}));
+                }
             });
         });
         // TODO: What are the data structures for the weights
         return aWeights;
     };
 
+    var samplePriors = function(aList) {
+        var aPriors = pamObject(aList, function(from, tos) {
+            // Ignore tos, just sample a probability
+            if (discrete) {
+                return uniformDraw(probs);
+            } else {
+                return sample(Beta({a: 1, b: 1}));
+            }
+        });
+
+        return aPriors;
+    };
+
     var nodes = ['bright', 'on', 'hot'];
+
+    // FIXME: Any way to sample without replacement instead of this?
+    var randomPair = function(nodes) {
+        var n1 = nodes[randomInteger(nodes.length)];
+        var possN2 = _.without(nodes, n1);
+        var n2 = possN2[randomInteger(possN2.length)];
+        return [n1, n2];
+    };
 
     // Sample a DAG
     var mSample = function() {
         var structAdjList = uniformDraw(enumerateStructures(nodes));
         var structAdjWeights = sampleWeights(structAdjList);
-        // return [structAdjList, structAdjWeights];
-        return DAG(structAdjList, structAdjWeights);
+        var structAdjPriors = samplePriors(structAdjList);
+        return DAG(structAdjList, structAdjWeights, structAdjPriors);
     };
 
     // Sample an experiment
     var xSample = function() {
-        // Then later, marignal
-        // var xType = uniformDraw(['structure', 'prior']);
-        var xType = 'structure';
+        // Then later, conditional
+        var xType = uniformDraw(['structure', 'marginal', 'conditional']);
+        // var xType = 'structure';
         if (xType === 'structure') {
-            var child = nodes[randomInteger(nodes.length)];
-            var possParents = _.without(nodes, child);
-            var parent = possParents[randomInteger(possParents.length)];
+            var pair = randomPair(nodes);
+            var child = pair[0],
+                parent = pair[1];
             return {
                 type: xType,
                 child: child,
-                parent: parent
+                parent: parent,
+                text: (
+                    "Does " + parent +
+                    " cause " + child +
+                    "[1], prevent " + child +
+                    "[-1], or have no effect [0]?"
+                )
             };
-        } else if (xType === 'prior') {
-            var node = nodes[randomInteger(nodes.length)];
+        } else if (xType === 'marginal') {
+            var a = nodes[randomInteger(nodes.length)];
             return {
                 type: xType,
-                node: node
+                a: a,
+                text: (
+                    "Image 100 x. How many are " + a +
+                    "? in [0, 1]"
+                )
             };
-        } else {
-            return null;
+        } else if (xType === 'conditional') {
+            var pair = randomPair(nodes);
+            // TODO: Is there a more proper notation for this than just
+            // assuming P(A|B)?
+            var a = pair[0],
+                b = pair[1];
+            return {
+                type: xType,
+                a: a,
+                b: b,
+                // Either P(A | B) or P(A | ~B)
+                bTruth: flip(),
+                text: (
+                    "Imagine 100 x that are " + b +
+                    ". What proportion are " + a +
+                    "? in [0, 1]"
+                )
+            };
         }
     };
 
-    // TODO:
-    // http://cs.stackexchange.com/questions/580/what-combination-of-data-structures-efficiently-stores-discrete-bayesian-network
-    // Remember that edge weights encode weights of noisy-ors, for which you calculate the CPT
-    // Remember that edge weights could be negative (make sure to find some way of
-    // identifying preventative)
-    // Remember that when you don't know fixed values for priors, etc. you need to
-    // integrate over them
-
-
-    // Verify DAG? Check if loops (depth first search)
     var ySample = function(x) {
         if (x.type === 'structure') {
-            return flip();
-        } else if (x.type === 'prior') {
-            console.log(notimplemented);
+            return uniformDraw([-1, 0, 1]);
+        } else if (x.type === 'marginal') {
+            // Totally uninformative prior
+            if (discrete) {
+                return uniformDraw(probs);
+            } else {
+                return sample(Beta({a: 1, b: 1}));
+            }
         } else if (x.type === 'conditional') {
-            console.log(notimplemented);
+            // Totally uninformative prior
+            if (discrete) {
+                return uniformDraw(probs);
+            } else {
+                return sample(Beta({a: 1, b: 1}));
+            }
+        } else {
+            err("unknown x type " + x.type);
         }
     };
 
@@ -178,27 +337,42 @@ var infrastructure = function() {
         X: xSample,
         Y: ySample,
         infer: {
-            M1: function(thunk) {
+            M1: !discrete && function(thunk) {
+                console.log('mcmc');
                 Infer({
                     method: 'MCMC',
                     kernel: 'MH',
                     samples: 10000,
                     burn: 5000,
-                    // verbose: true
                 }, thunk);
             },
-            M2: function(thunk) {
+            M2: !discrete && function(thunk) {
+                console.log('mcmc');
                 Infer({
                     method: 'MCMC',
                     kernel: 'MH',
                     samples: 500,
                     burn: 100,
-                    // verbose: true
                 }, thunk);
             },
-            X: Enumerate, // only 6
-            Y: Enumerate, // true or false
-            // usePredictiveY: true
+            X: Enumerate,
+            // Only 6, but if using predictive y, then need approximation
+            Y: function(thunk) {
+                Infer({
+                    method: 'enumerate',
+                    maxExecutions: 100,
+                    // See notes on likelyFirst favoring MAP
+                    strategy: 'likelyFirst'
+                }, thunk);
+            }
+            // Y: !discrete && function(thunk) {
+                // console.log('mcmc');
+                // Infer({
+                    // method: 'MCMC',
+                    // kernel: 'MH',
+                    // samples: 10,
+                // }, thunk);
+            // }
         }
     };
 };

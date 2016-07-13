@@ -8,16 +8,15 @@ var infrastructure = function() {
 
     var discrete = true;
     // var probs = [0, 0.5];
-    var weights = [-1, 1];
+    // var weights = [-1, 1];
 
+    // With these weights, there are probably something like 100k models
     var probs = [
-        0, 0.01, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99, 1
+        0.1, 0.5, 0.9
     ];
-    // var weights = [
-        // -0.01, -0.05, -0.1, -0.2, -0.3, -0.4, -0.5, -0.6, -0.7, -0.8, -0.9,
-        // -0.95, -0.99, -1, 0, 0.01, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7,
-        // 0.8, 0.9, 0.95, 0.99, 1
-    // ];
+    var weights = [
+        0.5, 0.9
+    ];
 
     var shuffle = function(toShuffle, shuffled) {
         if (toShuffle.length === 0) {
@@ -224,6 +223,7 @@ var infrastructure = function() {
     // a DAG functor, taking in an adjacency list (structure), a set of weights
     // (strength), and returning a function that scores experiments according to responses.
     var DAG = function(aList, aWeights, aPriors, modelName) {
+
         // XXX: Store JPD here, or add to a cache?
         var jpd = JPD(aList, aWeights, aPriors);
         // Internal numerical IDs for ordering of JPDS
@@ -244,16 +244,18 @@ var infrastructure = function() {
                 return Bernoulli({p: 0.9}).score(compatible);
             } else if (x.type === 'marginal') {
                 var marginalEst = marginal(jpd, ids, x.a);
-                return Binomial({
+                var score = Binomial({
                     n: N,
                     p: marginalEst
                 }).score(Math.round(y * N));
+                return (score === null) ? -Infinity : score;
             } else if (x.type === 'conditional') {
                 var conditionalEst = conditional(jpd, ids, x.a, x.cond);
-                return Binomial({
+                var score = Binomial({
                     n: N,
                     p: conditionalEst
                 }).score(Math.round(y * N));
+                return (score === null) ? -Infinity : score;
             } else {
                 err("unknown type " + x.type);
             }
@@ -342,48 +344,53 @@ var infrastructure = function() {
     };
 
     // Sample a DAG
-    // var mSample = function() {
-        // var structAdjList = uniformDraw(enumerateStructures(nodes));
-        // var structAdjWeights = sampleWeights(structAdjList);
-        // var structAdjPriors = samplePriors(structAdjList);
-        // return DAG(structAdjList, structAdjWeights, structAdjPriors);
-    // };
     var mSample = function() {
-        return uniformDraw([
-            DAG(
-                {bright: [], hot: [], on: []},
-                {bright: [], hot: [], on: []},
-                {bright: 0.5, hot: 0.5, on: 0.5},
-                "null"
-            ),
-            DAG(
-                {bright: ['on'], hot: ['on'], on: []},
-                {bright: [1], hot: [1], on: []},
-                {bright: 0, hot: 0, on: 0.5},
-                "on causes bright & hot"
-            ),
-            // Hot causes brightness
-            DAG(
-                {bright: ['hot'], hot: ['on'], on: []},
-                {bright: [1], hot: [1], on: []},
-                {bright: 0, hot: 0, on: 0.5},
-                "on causes hot causes bright"
-            ),
-            // "Some bulbs are eco-friendly"
-            DAG(
-                {bright: ['on'], hot: ['on'], on: []},
-                {bright: [1], hot: [0.8], on: []},
-                {bright: 0, hot: 0, on: 0.5},
-                "eco-friendly bulbs not hot"
-            ),
-            DAG(
-                {bright: ['on'], hot: ['on'], on: []},
-                {bright: [1], hot: [1], on: []},
-                {bright: 0, hot: 0, on: 0.2},
-                "most lightbulbs are off"
-            )
+        // var structAdjList = uniformDraw(enumerateStructures(nodes));
+        var structAdjList = uniformDraw([
+            {bright: [], hot: [], on: []}, // null
+            {bright: ['on'], hot: ['on'], on: []}, // standard
+            // {bright: ['hot'], hot: ['on'], on: []}, // scientist
         ]);
+        var structAdjWeights = sampleWeights(structAdjList);
+        var structAdjPriors = samplePriors(structAdjList);
+        return DAG(structAdjList, structAdjWeights, structAdjPriors);
     };
+    // var mSample = function() {
+        // return uniformDraw([
+            // DAG(
+                // {bright: [], hot: [], on: []},
+                // {bright: [], hot: [], on: []},
+                // {bright: 0.5, hot: 0.5, on: 0.5},
+                // "null"
+            // ),
+            // DAG(
+                // {bright: ['on'], hot: ['on'], on: []},
+                // {bright: [1], hot: [1], on: []},
+                // {bright: 0, hot: 0, on: 0.5},
+                // "on causes bright & hot"
+            // ),
+            // // Hot causes brightness
+            // DAG(
+                // {bright: ['hot'], hot: ['on'], on: []},
+                // {bright: [1], hot: [1], on: []},
+                // {bright: 0, hot: 0, on: 0.5},
+                // "on causes hot causes bright"
+            // ),
+            // // "Some bulbs are eco-friendly"
+            // DAG(
+                // {bright: ['on'], hot: ['on'], on: []},
+                // {bright: [1], hot: [0.8], on: []},
+                // {bright: 0, hot: 0, on: 0.5},
+                // "eco-friendly bulbs not hot"
+            // ),
+            // DAG(
+                // {bright: ['on'], hot: ['on'], on: []},
+                // {bright: [1], hot: [1], on: []},
+                // {bright: 0, hot: 0, on: 0.2},
+                // "most lightbulbs are off"
+            // )
+        // ]);
+    // };
 
     // Sample an experiment
     // TODO: For now, omit structure
@@ -419,8 +426,8 @@ var infrastructure = function() {
             var a = uniformDraw(nodes); // jshint ignore:line
             var rest = _.without(nodes, a);
             // How many other variables to condition on
-            var condAmt = randomInteger(rest.length) + 1;
-            // var condAmt = 1; // If we just want to condition on 1 thing
+            // var condAmt = randomInteger(rest.length) + 1;
+            var condAmt = 1; // If we just want to condition on 1 thing
             // Assign random varible to each rest
             var condNodes = sampleN(rest, condAmt);
             var cond = _.object(
@@ -484,7 +491,7 @@ var infrastructure = function() {
             // Y: function(thunk) {
                 // Infer({
                     // method: 'enumerate',
-                    // maxExecutions: 100,
+                    // maxExecutions: 600,
                     // // See notes on likelyFirst favoring MAP
                     // strategy: 'likelyFirst'
                 // }, thunk);

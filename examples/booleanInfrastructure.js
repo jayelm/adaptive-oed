@@ -50,9 +50,10 @@ var infrastructure = function() {
 
     // Convert a condition to a natural language string.
     var conditionStr = function(cond) {
-        return pam(Object.keys(cond), function(key, acc) {
-            return cond[key] ? key : "not " + key
+        var condStr = pam(Object.keys(cond), function(key, acc) {
+            return cond[key] ? key : "not " + key;
         }).join(" and ");
+        return condStr.replace("and not", "but not");
     };
 
     // Calculate the JPD table by sampling parent nodes and propagating
@@ -85,7 +86,7 @@ var infrastructure = function() {
             // manner
             var assign = function(chiObj) {
                 var newChiObj = pamObject(chiObj, function(node, val) {
-                    if (val == null) {
+                    if (val === null) {
                         // Obtain parent values
                         var childPars = aList[node];
                         var parAssns = pam(childPars, function(c) {
@@ -96,10 +97,10 @@ var infrastructure = function() {
                             var p1 = chiObj[c];
                             var p2 = parObj[c];
                             // DON'T USE === here, p1 is either null *or* undefined
-                            return (p1 != null) ? p1 : p2;
+                            return (p1 != null) ? p1 : p2; // jshint ignore:line
                         });
                         var allParentsAssigned = all(function(c) {
-                            return c != null;
+                            return c != null; // jshint ignore:line
                         }, parAssns);
                         if (allParentsAssigned) {
                             // Yuille (2008) noisy-logical.
@@ -164,7 +165,7 @@ var infrastructure = function() {
             var nullAssns = repeat(children.length, function() { return null; });
             var chiObj = assign(_.object(children, nullAssns));
             var boolArr = pam(Object.keys(aList), function(node) {
-                return (parObj[node] != null) ? parObj[node] : chiObj[node];
+                return (parObj[node] != null) ? parObj[node] : chiObj[node]; // jshint ignore:line
             });
             // Encode as a boolean, preserving aList order
             // return boolsToN(boolArr);
@@ -188,13 +189,13 @@ var infrastructure = function() {
     });
 
     var conditional = cache(function(jpd, ids, a, cond) {
-        // The accumulator is [0] P(A, cond), [1] P(cond)
+        // The accumulator is [P(A, cond), P(cond)]
         var probs = reduce(function(row, probs) {
             var assns = row[0];
             var p = row[1];
             // Is the condition satisfied? check each condition manually
             var condition = all(function(c) {
-                assns[ids[c]] === cond[c]
+                return assns[ids[c]] === cond[c];
             }, Object.keys(cond));
             if (condition) {
                 return [
@@ -332,7 +333,7 @@ var infrastructure = function() {
                 return {
                     sample: acc.sample.concat(s),
                     rest: _.without(acc.rest, s)
-                }
+                };
             },
             {sample: [], rest: arr},
             _.range(n)
@@ -415,7 +416,7 @@ var infrastructure = function() {
                 )
             };
         } else if (xType === 'conditional') {
-            var a = uniformDraw(nodes);
+            var a = uniformDraw(nodes); // jshint ignore:line
             var rest = _.without(nodes, a);
             // How many other variables to condition on
             var condAmt = randomInteger(rest.length) + 1;

@@ -2,6 +2,10 @@ var infrastructure = function() {
     var _ = underscore;
 
     // TODO: This also assumes discrete judgments (for now) from probs
+    var nodes = ['bright', 'on', 'hot'];
+    // Quantity asked
+    var N = 100;
+
     var discrete = true;
     // var probs = [0, 0.5];
     var weights = [-1, 1];
@@ -202,7 +206,12 @@ var infrastructure = function() {
             }
         }, [0, 0], jpd);
         // P(A | cond) = P(A, cond) / P(cond)
-        return probs[0] / probs[1];
+        if (probs[0] === 0 && probs[1] === 0) {
+            // This was never possible, return 0
+            return 0;
+        } else {
+            return probs[0] / probs[1];
+        }
     });
 
     var prettyPrint = function(dag) {
@@ -212,7 +221,7 @@ var infrastructure = function() {
 
     // a DAG functor, taking in an adjacency list (structure), a set of weights
     // (strength), and returning a function that scores experiments according to responses.
-    var DAG = function(aList, aWeights, aPriors) {
+    var DAG = function(aList, aWeights, aPriors, modelName) {
         // XXX: Store JPD here, or add to a cache?
         var jpd = JPD(aList, aWeights, aPriors);
         // Internal numerical IDs for ordering of JPDS
@@ -234,21 +243,21 @@ var infrastructure = function() {
             } else if (x.type === 'marginal') {
                 var marginalEst = marginal(jpd, ids, x.a);
                 return Binomial({
-                    n: 100,
+                    n: N,
                     p: marginalEst
-                }).score(y);
+                }).score(Math.round(y * N));
             } else if (x.type === 'conditional') {
                 var conditionalEst = conditional(jpd, ids, x.a, x.cond);
                 return Binomial({
-                    n: 100,
+                    n: N,
                     p: conditionalEst
-                }).score(y);
+                }).score(Math.round(y * N));
             } else {
                 err("unknown type " + x.type);
             }
         };
         // Don't encode JPDs into model name, too verbose
-        var mName = JSON.stringify([aList, aWeights, aPriors]);
+        var mName = modelName || JSON.stringify([aList, aWeights, aPriors]);
         return Model(mName, dagModel);
     };
 
@@ -315,8 +324,6 @@ var infrastructure = function() {
         return aPriors;
     };
 
-    var nodes = ['bright', 'on', 'hot'];
-
     var sampleN = function(arr, n) {
         var sampleObj = reduce(
             function(i, acc) {
@@ -341,36 +348,38 @@ var infrastructure = function() {
     // };
     var mSample = function() {
         return uniformDraw([
-            // Null
             DAG(
                 {bright: [], hot: [], on: []},
                 {bright: [], hot: [], on: []},
-                {bright: 0.5, hot: 0.5, on: 0.5}
+                {bright: 0.5, hot: 0.5, on: 0.5},
+                "null"
             ),
-            // half bulbs are on, and all are bright + hot
             DAG(
                 {bright: ['on'], hot: ['on'], on: []},
                 {bright: [1], hot: [1], on: []},
-                {bright: 0, hot: 0, on: 0.5}
+                {bright: 0, hot: 0, on: 0.5},
+                "on causes bright & hot"
             ),
             // Hot causes brightness
             DAG(
                 {bright: ['hot'], hot: ['on'], on: []},
                 {bright: [1], hot: [1], on: []},
-                {bright: 0, hot: 0, on: 0.5}
+                {bright: 0, hot: 0, on: 0.5},
+                "on causes hot causes bright"
             ),
             // "Some bulbs are eco-friendly"
-            // DAG(
-                // {bright: ['on'], hot: ['on'], on: []},
-                // {bright: [1], hot: [0.8], on: []},
-                // {bright: 0, hot: 0, on: 0.5}
-            // ),
-            // "Most lightbulbs are off"
-            // DAG(
-                // {bright: ['on'], hot: ['on'], on: []},
-                // {bright: [1], hot: [1], on: []},
-                // {bright: 0, hot: 0, on: 0.2}
-            // )
+            DAG(
+                {bright: ['on'], hot: ['on'], on: []},
+                {bright: [1], hot: [0.8], on: []},
+                {bright: 0, hot: 0, on: 0.5},
+                "eco-friendly bulbs not hot"
+            ),
+            DAG(
+                {bright: ['on'], hot: ['on'], on: []},
+                {bright: [1], hot: [1], on: []},
+                {bright: 0, hot: 0, on: 0.2},
+                "most lightbulbs are off"
+            )
         ]);
     };
 

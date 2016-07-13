@@ -179,11 +179,23 @@ var runCLI = function(aoed, args) {
         }
         console.log(prior.MAP());
 
-        var expt = aoed.suggest(prior, args);
-        console.log("Suggested experiments:");
-        console.log(expt);
+        var expts = aoed.suggestAll(prior, args);
+        if (args.verbose) {
+            console.log(expts);
+        }
+        // Get best experiment manually, so that we can display all of them if
+        // wanted ^
+        var bestExpt = {x: null, EIG: -Infinity};
+        for (var i = 0; i < expts.length; i++) {
+            var expt = expts[i];
+            if (expt.EIG > bestExpt.EIG) {
+                bestExpt = expt;
+            }
+        }
+        console.log("Suggested experiment:");
+        console.log(bestExpt);
 
-        var x = expt.x;
+        var x = bestExpt.x;
 
         prompt.start();
         prompt.get([

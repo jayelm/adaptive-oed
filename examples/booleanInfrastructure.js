@@ -66,7 +66,7 @@ var infrastructure = function() {
             return aList[node].length !== 0;
         });
 
-        return Enumerate(function() {
+        var jpdDist = Enumerate(function() {
             // Parents occur with probability equal to background cause
             var parAssns = pamN(parents.length, function(i) {
                 return flip(parProbs[i]);
@@ -81,9 +81,7 @@ var infrastructure = function() {
             // manner
             var assign = function(chiObj) {
                 var newChiObj = pamObject(chiObj, function(node, val) {
-                    // Careful: only use === to compare with chiObj vals, which
-                    // are explicitly nulled
-                    if (val === null) {
+                    if (val == null) {
                         // Obtain parent values
                         var childPars = aList[node];
                         var parAssns = pam(childPars, function(c) {
@@ -93,7 +91,8 @@ var infrastructure = function() {
                             // truthiness, since 0 is false
                             var p1 = chiObj[c];
                             var p2 = parObj[c];
-                            return (p1 !== null) ? p1 : p2;
+                            // DON'T USE === here, p1 is either null *or* undefined
+                            return (p1 != null) ? p1 : p2;
                         });
                         var allParentsAssigned = all(function(c) {
                             return c != null;
@@ -160,19 +159,55 @@ var infrastructure = function() {
 
             var nullAssns = repeat(children.length, function() { return null; });
             var chiObj = assign(_.object(children, nullAssns));
-            // Return these in aList order
-            return pam(Object.keys(aList), function(node) {
+            var boolArr = pam(Object.keys(aList), function(node) {
                 return (parObj[node] != null) ? parObj[node] : chiObj[node];
             });
+            // Encode as a boolean, preserving aList order
+            // return boolsToN(boolArr);
+            return boolArr;
         });
+
+        var jpdVals = _.values(jpdDist.params.dist);
+        return zip(
+            _.pluck(jpdVals, 'val'),
+            _.pluck(jpdVals, 'prob')
+        );
     };
 
-    var marginal = function(jpd, id) {
-        err("not implemented");
-    };
+    // XXX: To cache or not to cache?
+    var marginal = cache(function(jpd, ids, a) {
+        return reduce(function(row, prob) {
+            var assns = row[0];
+            var p = row[1];
+            return (assns[ids[a]]) ? prob + p : prob;
+        }, 0, jpd);
+    });
 
-    var conditional = function(jpd, id, cond) {
-        err("not implemented");
+    var conditional = cache(function(jpd, ids, a, cond) {
+        // The accumulator is [0] P(A, cond), [1] P(cond)
+        var probs = reduce(function(row, probs) {
+            var assns = row[0];
+            var p = row[1];
+            // Is the condition satisfied? check each condition manually
+            var condition = all(function(c) {
+                assns[ids[c]] === cond[c]
+            }, Object.keys(cond));
+            if (condition) {
+                return [
+                    (assns[ids[a]]) ? probs[0] + p : probs[0],
+                    probs[1] + p
+                ];
+            } else {
+                return probs;
+            }
+        }, [0, 0], jpd);
+        // P(A | cond) = P(A, cond) / P(cond)
+        return probs[0] / probs[1];
+    });
+
+    var prettyPrint = function(dag) {
+        return dag.toString();
+        // Pretty-print the DAG according to the nodes
     };
 
     // a DAG functor, taking in an adjacency list (structure), a set of weights
@@ -180,7 +215,7 @@ var infrastructure = function() {
     var DAG = function(aList, aWeights, aPriors) {
         // XXX: Store JPD here, or add to a cache?
         var jpd = JPD(aList, aWeights, aPriors);
-        // Numerical IDs for ordering of JPDS
+        // Internal numerical IDs for ordering of JPDS
         var ids = _.object(Object.keys(aList), _.range(Object.keys(aList).length));
         var dagModel = function(x, y) {
             if (x.type === 'structure') {
@@ -197,13 +232,13 @@ var infrastructure = function() {
                 // To make this delta, p should be 1. For noise, decrease p
                 return Bernoulli({p: 0.9}).score(compatible);
             } else if (x.type === 'marginal') {
-                var marginalEst = marginal(jpd, ids[x.a]);
+                var marginalEst = marginal(jpd, ids, x.a);
                 return Binomial({
                     n: 100,
                     p: marginalEst
                 }).score(y);
             } else if (x.type === 'conditional') {
-                var conditionalEst = conditional(jpd, ids[x.a], x.cond);
+                var conditionalEst = conditional(jpd, ids, x.a, x.cond);
                 return Binomial({
                     n: 100,
                     p: conditionalEst

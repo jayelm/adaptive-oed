@@ -1,8 +1,7 @@
 var infrastructure = function() {
     var _ = underscore;
 
-    // TODO: This also assumes discrete judgments (for now), that come from
-    // probs
+    // TODO: This also assumes discrete judgments (for now) from probs
     var discrete = true;
     // var probs = [0, 0.5];
     var weights = [-1, 1];
@@ -43,6 +42,13 @@ var infrastructure = function() {
     var err = function(msg) {
         console.log(msg);
         console.log(error);
+    };
+
+    // Convert a condition to a natural language string.
+    var conditionStr = function(cond) {
+        return pam(Object.keys(cond), function(key, acc) {
+            return cond[key] ? key : "not " + key
+        }).join(" and ");
     };
 
     // Calculate the JPD table by sampling parent nodes and propagating
@@ -161,6 +167,14 @@ var infrastructure = function() {
         });
     };
 
+    var marginal = function(jpd, id) {
+        err("not implemented");
+    };
+
+    var conditional = function(jpd, id, cond) {
+        err("not implemented");
+    };
+
     // a DAG functor, taking in an adjacency list (structure), a set of weights
     // (strength), and returning a function that scores experiments according to responses.
     var DAG = function(aList, aWeights, aPriors) {
@@ -189,7 +203,7 @@ var infrastructure = function() {
                     p: marginalEst
                 }).score(y);
             } else if (x.type === 'conditional') {
-                var conditionalEst = conditional(jpd, ids[x.a], x.rest);
+                var conditionalEst = conditional(jpd, ids[x.a], x.cond);
                 return Binomial({
                     n: 100,
                     p: conditionalEst
@@ -360,6 +374,7 @@ var infrastructure = function() {
             var rest = _.without(nodes, a);
             // How many other variables to condition on
             var condAmt = randomInteger(rest.length) + 1;
+            // var condAmt = 1; // If we just want to condition on 1 thing
             // Assign random varible to each rest
             var condNodes = sampleN(rest, condAmt);
             var cond = _.object(
@@ -371,7 +386,7 @@ var infrastructure = function() {
                 a: a,
                 cond: cond,
                 text: (
-                    "Imagine 100 x that are " + cond +
+                    "Imagine 100 x that are " + conditionStr(cond) +
                     ". What proportion are " + a +
                     "? in [0, 1]"
                 )

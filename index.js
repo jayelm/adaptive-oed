@@ -173,7 +173,10 @@ var compileSkeleton = function(skeleton) {
 var runCLI = function(aoed, args) {
     var repeatUpdate = function(prior) {
         console.log("Prior:");
-        // TODO: Verbose flag - if verbose, print the entire prior
+        if (args.verbose) {
+            console.log(prior);
+            console.log("MAP:");
+        }
         console.log(prior.MAP());
 
         var expt = aoed.suggest(prior, args);
@@ -208,7 +211,11 @@ var runCLI = function(aoed, args) {
 var runCLIAll = function(aoed, args) {
     var repeatUpdate = function(prior) {
         console.log("Prior:");
-        console.log(prior);
+        if (args.verbose) {
+            console.log(prior);
+            console.log("MAP:");
+        }
+        console.log(prior.MAP());
 
         var expt = aoed.suggestAll(prior, args);
         console.log("Suggested experiments:");

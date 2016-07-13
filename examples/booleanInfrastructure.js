@@ -217,6 +217,7 @@ var infrastructure = function() {
     var prettyPrint = function(dag) {
         return dag.toString();
         // Pretty-print the DAG according to the nodes
+        // TODO: Or add jpd property to named model functions?
     };
 
     // a DAG functor, taking in an adjacency list (structure), a set of weights

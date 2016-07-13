@@ -20,17 +20,8 @@ var infrastructure = function() {
         if (toShuffle.length === 0) {
             return shuffled;
         }
-        var i = randomInteger(toShuffle.length);
-        var toRemove = toShuffle[i];
+        var toRemove = uniformDraw(toShuffle);
         return shuffle(_.without(toShuffle, toRemove), append(shuffled, toRemove));
-    };
-
-    var reflit = function(arr, f) {
-        return filter(f, arr);
-    };
-
-    var lla = function(arr, pred) {
-        return all(pred, all);
     };
 
     var pam = function(arr, f) {
@@ -58,14 +49,14 @@ var infrastructure = function() {
     // outwards.
     var JPD = function(aList, aWeights, aPriors) {
         // Identify global parent nodes
-        var parents = reflit(Object.keys(aList), function(node) {
+        var parents = retlif(Object.keys(aList), function(node) {
             return aList[node].length === 0;
         });
         var parProbs = pam(parents, function(p) {
             return aPriors[p];
         });
 
-        var children = reflit(Object.keys(aList), function(node) {
+        var children = retlif(Object.keys(aList), function(node) {
             return aList[node].length !== 0;
         });
 
@@ -161,7 +152,7 @@ var infrastructure = function() {
                 }
             };
 
-            var nullAssns = pamN(children.length, function(c) { return null; });
+            var nullAssns = repeat(children.length, function() { return null; });
             var chiObj = assign(_.object(children, nullAssns));
             // Return these in aList order
             return pam(Object.keys(aList), function(node) {
@@ -277,12 +268,19 @@ var infrastructure = function() {
 
     var nodes = ['bright', 'on', 'hot'];
 
-    // FIXME: Any way to sample without replacement instead of this?
-    var randomPair = function(nodes) {
-        var n1 = nodes[randomInteger(nodes.length)];
-        var possN2 = _.without(nodes, n1);
-        var n2 = possN2[randomInteger(possN2.length)];
-        return [n1, n2];
+    var sampleN = function(arr, n) {
+        var sampleObj = reduce(
+            function(i, acc) {
+                var s = uniformDraw(acc.rest);
+                return {
+                    sample: acc.sample.concat(s),
+                    rest: _.without(acc.rest, s)
+                }
+            },
+            {sample: [], rest: arr},
+            _.range(n)
+        );
+        return sampleObj.sample;
     };
 
     // Sample a DAG
@@ -333,7 +331,7 @@ var infrastructure = function() {
         // var xType = uniformDraw(['structure', 'marginal', 'conditional']);
         var xType = uniformDraw(['marginal', 'conditional']);
         if (xType === 'structure') {
-            var pair = randomPair(nodes);
+            var pair = sampleN(nodes, 2);
             var child = pair[0],
                 parent = pair[1];
             return {
@@ -348,7 +346,7 @@ var infrastructure = function() {
                 )
             };
         } else if (xType === 'marginal') {
-            var a = nodes[randomInteger(nodes.length)];
+            var a = uniformDraw(nodes);
             return {
                 type: xType,
                 a: a,
@@ -358,7 +356,7 @@ var infrastructure = function() {
                 )
             };
         } else if (xType === 'conditional') {
-            var a = nodes[randomInteger(nodes.length)];
+            var a = uniformDraw(nodes);
             var rest = _.without(nodes, a);
             // How many other variables to condition on
             var condAmt = randomInteger(rest.length) + 1;

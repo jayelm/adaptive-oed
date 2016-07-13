@@ -49,16 +49,13 @@ var infrastructure = function() {
         return filter(f, arr);
     };
 
-    var ecuder = function(arr, init, f) {
-        return reduce(f, init, arr);
-    };
-
     var err = function(msg) {
         console.log(msg);
         console.log(error);
     };
 
-    // Calculate the JPD table
+    // Calculate the JPD table by sampling parent nodes and propagating
+    // outwards.
     var JPD = function(aList, aWeights, aPriors) {
         // Identify global parent nodes
         var parents = reflit(Object.keys(aList), function(node) {
@@ -87,7 +84,9 @@ var infrastructure = function() {
             // manner
             var assign = function(chiObj) {
                 var newChiObj = pamObject(chiObj, function(node, val) {
-                    if (val == null) {
+                    // Careful: only use === to compare with chiObj vals, which
+                    // are explicitly nulled
+                    if (val === null) {
                         // Obtain parent values
                         var childPars = aList[node];
                         var parAssns = pam(childPars, function(c) {
@@ -97,20 +96,21 @@ var infrastructure = function() {
                             // truthiness, since 0 is false
                             var p1 = chiObj[c];
                             var p2 = parObj[c];
-                            return (p1 != null) ? p1 : p2;
+                            return (p1 !== null) ? p1 : p2;
                         });
                         var allParentsAssigned = all(function(c) {
                             return c != null;
                         }, parAssns);
                         if (allParentsAssigned) {
                             // Yuille (2008) noisy-logical.
-                            // XXX: For the case of one generative cause ~G, 
+                            // XXX: For the case of one generative cause ~G,
                             // one preventive ~P, and one background cause ~B,
                             // we assume the boolean function (~G ^ ~P) v ~B.
                             // This is a rather arbitrary selection, and WON'T
                             // work if expanding to 4 boolean predicates.
-                            // Alternatively, you'd need to sample from the
-                            // boolean functions.
+                            // Alternatively, we'd need to sample from possible
+                            // boolean combinations (perhaps sample a unique
+                            // "precedence" for G, B, P, etc.)
 
                             // The probability of c occurring absent of causes
                             var initw0 = aPriors[node];
@@ -118,25 +118,30 @@ var infrastructure = function() {
                             // Assignments to the parents, and their weights
                             var parentsAndWeights = zip(parAssns, aWeights[node]);
 
-                            var prob = ecuder(parentsAndWeights, initw0, function(p, w0) {
-                                var parent = p[0];
-                                var w1 = p[1];
+                            var prob = reduce(
+                                function(pArr, w0) {
+                                    var parent = pArr[0];
+                                    var w1 = pArr[1];
 
-                                // If parent is not ON, then whatever effect
-                                // (generative/preventive) won't manifest, so
-                                // leave w0 alone
-                                if (!parent) {
-                                    return w0;
-                                } else {
-                                    // Otherwise, calculate increased/decreased probability
-                                    var cmp2 = (w1 >= 0) ?
-                                        1 - ((1 - w0) * (1 - w1)) : // Noisy-or
-                                        w0 * (1 + w1); // Noisy-not-and
-                                    return cmp2;
-                                }
-                            });
+                                    // If parent is not ON, then whatever effect
+                                    // (generative/preventive) won't manifest, so
+                                    // leave w0 alone
+                                    if (!parent) {
+                                        return w0;
+                                    } else {
+                                        // Otherwise, calculate increased/decreased
+                                        // probability
+                                        var cmp2 = (w1 >= 0) ?
+                                            1 - ((1 - w0) * (1 - w1)) : // Noisy-or
+                                            w0 * (1 + w1); // Noisy-not-and
+                                        return cmp2;
+                                    }
+                                },
+                                initw0,
+                                parentsAndWeights
+                            );
 
-                            // Flip according to this probability
+                            // Assign random flip according to this probability
                             return flip(prob);
                         } else {
                             // Wait for other children to be assigned

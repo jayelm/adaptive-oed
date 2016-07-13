@@ -3,7 +3,8 @@ var infrastructure = require('./booleanInfrastructure.js');
 
 var args = {
     usePredictiveY: true,
-    returnKL: false
+    returnKL: false,
+    verbose: true
 };
 
 var aoed = adaptive.AOED(infrastructure);

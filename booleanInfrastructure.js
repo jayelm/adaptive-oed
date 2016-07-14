@@ -264,7 +264,7 @@ var infrastructure = function() {
             }
         };
         // Don't encode JPDs into model name, too verbose
-        var mName = modelName || JSON.stringify([aList, aWeights, aPriors]);
+        var mName = modelName || JSON.stringify([aList, aWeights, aPriors, jpd]);
         return Model(mName, dagModel);
     };
 

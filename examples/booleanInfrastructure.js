@@ -12,10 +12,13 @@ var infrastructure = function() {
 
     // With these weights, there are probably something like 100k models
     var probs = [
-        0.1, 0.5, 0.9
+        0.1, 0.5
     ];
     var weights = [
-        0.5, 0.9
+        0.9
+    ];
+    var judgments = [
+        0.1, 0.5, 0.9
     ];
 
     var shuffle = function(toShuffle, shuffled) {
@@ -426,8 +429,8 @@ var infrastructure = function() {
             var a = uniformDraw(nodes); // jshint ignore:line
             var rest = _.without(nodes, a);
             // How many other variables to condition on
-            // var condAmt = randomInteger(rest.length) + 1;
-            var condAmt = 1; // If we just want to condition on 1 thing
+            var condAmt = randomInteger(rest.length) + 1;
+            // var condAmt = 1; // If we just want to condition on 1 thing
             // Assign random varible to each rest
             var condNodes = sampleN(rest, condAmt);
             var cond = _.object(
@@ -454,7 +457,7 @@ var infrastructure = function() {
         } else if (x.type === 'marginal' || x.type === 'conditional') {
             // Totally uninformative prior
             if (discrete) {
-                return uniformDraw(probs);
+                return uniformDraw(judgments);
             } else {
                 return sample(Beta({a: 1, b: 1}));
             }

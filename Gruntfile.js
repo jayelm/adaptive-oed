@@ -17,11 +17,12 @@ module.exports = function(grunt) {
         stripBanners: true
       },
       dist: {
-        src: ['index.js', 'webppl.min.js'],
+        src: ['adaptive.js', 'webppl.min.js'],
         dest: 'dist/<%= pkg.name %>.js',
         nonull: true
       }
     },
+    clean: ['bundle/*.js'],
     uglify: {
       options: {
         banner: '<%= banner %>'
@@ -52,7 +53,7 @@ module.exports = function(grunt) {
         src: 'Gruntfile.js'
       },
       main: {
-        src: ['index.js']
+        src: ['adaptive.js']
       }
       // lib_test: {
         // src: ['lib/**/*.js', 'test/**/*.js']
@@ -79,6 +80,7 @@ module.exports = function(grunt) {
   grunt.loadNpmTasks('grunt-contrib-nodeunit');
   grunt.loadNpmTasks('grunt-contrib-jshint');
   grunt.loadNpmTasks('grunt-contrib-watch');
+  grunt.loadNpmTasks('grunt-contrib-clean');
 
   grunt.registerTask('webppl', 'Build minified webppl.', function () {
     var done = this.async();

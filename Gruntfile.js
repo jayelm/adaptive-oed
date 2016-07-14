@@ -17,7 +17,7 @@ module.exports = function(grunt) {
         stripBanners: true
       },
       dist: {
-        src: ['adaptive.js', 'webppl.min.js'],
+        src: ['adaptive.js', 'acli.js', 'webppl.min.js'],
         dest: 'dist/<%= pkg.name %>.js',
         nonull: true
       }
@@ -95,8 +95,7 @@ module.exports = function(grunt) {
       }
     }, function(err, result, code) {
       if (err) {
-        grunt.log.error(err);
-        return code;
+        grunt.fail.fatal(err, code);
       }
 
       grunt.log.ok(result.stdout);

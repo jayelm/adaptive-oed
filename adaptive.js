@@ -1,5 +1,4 @@
 require('./webppl.min.js');
-var prompt = require('prompt');
 
 var makeSkeleton = function(infraThunk) {
     return {
@@ -17,7 +16,7 @@ var makeSkeleton = function(infraThunk) {
                 inferM1 = (args.infer && args.infer.M1) || Enumerate;
 
             return inferM1(function() {
-                var m = M();
+                var m = M(); // jshint ignore:line
                 return {name: m.name, func: m};
             });
         },
@@ -170,97 +169,6 @@ var compileSkeleton = function(skeleton) {
     return aoed;
 };
 
-var runCLI = function(aoed, args) {
-    var repeatUpdate = function(prior) {
-        console.log("Prior:");
-        if (args.verbose) {
-            console.log(prior);
-            console.log("MAP:");
-        }
-        console.log(prior.MAP());
-
-        var expts = aoed.suggestAll(prior, args);
-        if (args.verbose) {
-            console.log(expts);
-        }
-        // Get best experiment manually, so that we can display all of them if
-        // wanted ^
-        var bestExpt = {x: null, EIG: -Infinity};
-        for (var i = 0; i < expts.length; i++) {
-            var expt = expts[i];
-            if (expt.EIG > bestExpt.EIG) {
-                bestExpt = expt;
-            }
-        }
-        console.log("Suggested experiment:");
-        console.log(bestExpt);
-
-        var x = bestExpt.x;
-
-        prompt.start();
-        prompt.get([
-            {
-                name: 'expt',
-                message: 'Enter experiment result',
-                type: 'string'
-            }
-        ], function(err, result) {
-            if (err) {
-                console.log(err);
-                return 1;
-            }
-            var y = JSON.parse(result.expt);
-            var res = aoed.update(prior, x, y);
-            console.log("AIG: " + res.AIG);
-            repeatUpdate(res.mPosterior);
-        });
-    };
-
-    repeatUpdate(aoed.initialPrior);
-};
-
-// Like runCLI but doesn't force you to choose the best experiment
-var runCLIAll = function(aoed, args) {
-    var repeatUpdate = function(prior) {
-        console.log("Prior:");
-        if (args.verbose) {
-            console.log(prior);
-            console.log("MAP:");
-        }
-        console.log(prior.MAP());
-
-        var expt = aoed.suggestAll(prior, args);
-        console.log("Suggested experiments:");
-        console.log(expt);
-
-        prompt.start();
-        prompt.get([
-            {
-                name: 'expt',
-                message: 'Enter experiment',
-                type: 'string'
-            },
-            {
-                name: 'res',
-                message: 'Enter experiment result',
-                type: 'string'
-            }
-        ], function(err, result) {
-            if (err) {
-                console.log(err);
-                return 1;
-            }
-            var x = JSON.parse(result.expt);
-            var y = JSON.parse(result.res);
-            var res = aoed.update(prior, x, y);
-            console.log("AIG: " + res.AIG);
-            repeatUpdate(res.mPosterior);
-        });
-    };
-
-    repeatUpdate(aoed.initialPrior);
-};
-
 var AOED = function(infraThunk) {
     // Important: reflection must work on whatever platform this is running on.
     // Aside from that, the function must also have an args argument.
@@ -288,7 +196,5 @@ var AOED = function(infraThunk) {
 };
 
 module.exports = {
-    AOED: AOED,
-    runCLI: runCLI,
-    runCLIAll: runCLIAll,
+    AOED: AOED
 };

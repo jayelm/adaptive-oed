@@ -1,4 +1,5 @@
-var adaptive = require('..');
+var adaptive = require('../adaptive');
+var acli = require('../acli');
 var makeInfrastructure = require('./coinInfrastructure.js');
 
 var infrastructure = makeInfrastructure({nullGroup: true});
@@ -10,6 +11,6 @@ var args = {
 
 var aoed = adaptive.AOED(infrastructure);
 
-adaptive.runCLI(aoed, args);
+acli.runCLI(aoed, args);
 
-// adaptive.runCLIAll(aoed);
+// acli.runCLIAll(aoed);

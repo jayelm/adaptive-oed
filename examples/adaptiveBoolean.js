@@ -1,14 +1,15 @@
-var adaptive = require('..');
+var adaptive = require('../adaptive');
+var acli = require('../acli');
 var infrastructure = require('./booleanInfrastructure.js');
 
 var args = {
     usePredictiveY: true,
-    returnKL: false,
+    returnKL: true,
     verbose: true
 };
 
 var aoed = adaptive.AOED(infrastructure);
 
-adaptive.runCLI(aoed, args);
+acli.runCLI(aoed, args);
 
-// adaptive.runCLIAll(aoed, args);
+// acli.runCLIAll(aoed, args);

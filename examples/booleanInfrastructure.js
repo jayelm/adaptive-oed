@@ -1,26 +1,45 @@
 var infrastructure = function() {
     var _ = underscore;
 
-    // TODO: This also assumes discrete judgments (for now) from probs
     var nodes = ['bright', 'on', 'hot'];
     // Quantity asked
     var N = 100;
 
+    // Should we Enumerate with the discrete probabilities?
     var discrete = true;
-    // var probs = [0, 0.5];
-    // var weights = [-1, 1];
+    // Should we remove dependent clause models from the model space?
+    var simpleSpace = true;
+
+    // DISCRETE & CONTINUOUS MODEL JUDGMENTS
 
     // With these weights, there are probably something like 100k models
     var probs = [
-        0.1, 0.5
+        0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0
     ];
-    var weights = [
-        0.9
-    ];
-    var judgments = [
-        0.1, 0.5, 0.9
-    ];
+    // Uniform prior
+    var probsPrior = Beta({a:1, b: 1});
 
+    // ASSUMPTION: If C is caused by B, then C doesn't occur often by itself
+    // (intuitively; e.g. Griffiths & Tenenbaum 2005)
+    var causedProbs = [
+        0.0, 0.1, 0.2, 0.3, 0.4, 0.5
+    ];
+    // Skewed towards 0
+    var causedProbsPrior = Beta({a: 5, b: 1});
+
+    // ASSUMPTION: if a cause exists, then the cause is strong (0.5 - 1.0)
+    // The *strong* part of *sparse and strong* priors (Lu 2008)
+    var weights = [
+        0.5, 0.6, 0.7, 0.8, 0.9, 1
+    ];
+    // Skewed towards 1
+    var weightsPrior = Beta({a: 1, b: 5});
+
+    // Since probs encompass [0, 1], make judgments the same
+    var judgments = probs;
+    var judgmentsPrior = probsPrior;
+
+    // Utils
     var shuffle = function(toShuffle, shuffled) {
         if (toShuffle.length === 0) {
             return shuffled;
@@ -106,6 +125,8 @@ var infrastructure = function() {
                         }, parAssns);
                         if (allParentsAssigned) {
                             // Yuille (2008) noisy-logical.
+                            // TODO: Encode noisy-logicals for preventive
+                            // causes (later on)
                             // XXX: For the case of one generative cause ~G,
                             // one preventive ~P, and one background cause ~B,
                             // we assume the boolean function (~G ^ ~P) v ~B.
@@ -297,21 +318,28 @@ var infrastructure = function() {
     };
 
     var enumerateStructures = cache(function(nodes) {
-        return Enumerate(function() {
-            sampleStructures(nodes);
+        var structs = Enumerate(function() {
+            var struct = sampleStructures(nodes);
+            if (simpleSpace) {
+                // Require that the number of causal links <= 2
+                var sCount = reduce(function(node, acc) {
+                    return acc + struct[node].length;
+                }, 0, nodes);
+                condition(sCount <= 2);
+            }
+            return struct;
         }).support();
+        return structs;
     });
 
     var sampleWeights = function(aList) {
         // Sample causal weights
-        var aWeights = pamObject(aList, function(from, tos) {
-            return pam(tos, function(t) {
-                if (discrete) {
-                    return uniformDraw(weights);
-                } else {
-                    // Alternatively, scale a Beta distribution
-                    return sample(Uniform({a: -1, b: 1}));
-                }
+        var aWeights = pamObject(aList, function(child, parents) {
+            return repeat(parents.length, function() {
+                // ASSUMPTION: See weights assumption
+                return (discrete) ?
+                    uniformDraw(weights) :
+                    sample(weightsPrior);
             });
         });
         return aWeights;
@@ -319,12 +347,16 @@ var infrastructure = function() {
 
     var samplePriors = function(aList) {
         // Sample background weights ("priors?")
-        var aPriors = pamObject(aList, function(from, tos) {
-            // Ignore tos, just sample a probability
-            if (discrete) {
-                return uniformDraw(probs);
+        var aPriors = pamObject(aList, function(child, parents) {
+            // ASSUMPTION: see causedProbs assumption
+            if (parents.length > 0) {
+                return (discrete) ?
+                    uniformDraw(causedProbs) :
+                    sample(causedProbsPrior);
             } else {
-                return sample(Beta({a: 1, b: 1}));
+                return (discrete) ?
+                    uniformDraw(probs) :
+                    sample(probsPrior);
             }
         });
 
@@ -348,52 +380,11 @@ var infrastructure = function() {
 
     // Sample a DAG
     var mSample = function() {
-        // var structAdjList = uniformDraw(enumerateStructures(nodes));
-        var structAdjList = uniformDraw([
-            {bright: [], hot: [], on: []}, // null
-            {bright: ['on'], hot: ['on'], on: []}, // standard
-            // {bright: ['hot'], hot: ['on'], on: []}, // scientist
-        ]);
+        var structAdjList = uniformDraw(enumerateStructures(nodes));
         var structAdjWeights = sampleWeights(structAdjList);
         var structAdjPriors = samplePriors(structAdjList);
         return DAG(structAdjList, structAdjWeights, structAdjPriors);
     };
-    // var mSample = function() {
-        // return uniformDraw([
-            // DAG(
-                // {bright: [], hot: [], on: []},
-                // {bright: [], hot: [], on: []},
-                // {bright: 0.5, hot: 0.5, on: 0.5},
-                // "null"
-            // ),
-            // DAG(
-                // {bright: ['on'], hot: ['on'], on: []},
-                // {bright: [1], hot: [1], on: []},
-                // {bright: 0, hot: 0, on: 0.5},
-                // "on causes bright & hot"
-            // ),
-            // // Hot causes brightness
-            // DAG(
-                // {bright: ['hot'], hot: ['on'], on: []},
-                // {bright: [1], hot: [1], on: []},
-                // {bright: 0, hot: 0, on: 0.5},
-                // "on causes hot causes bright"
-            // ),
-            // // "Some bulbs are eco-friendly"
-            // DAG(
-                // {bright: ['on'], hot: ['on'], on: []},
-                // {bright: [1], hot: [0.8], on: []},
-                // {bright: 0, hot: 0, on: 0.5},
-                // "eco-friendly bulbs not hot"
-            // ),
-            // DAG(
-                // {bright: ['on'], hot: ['on'], on: []},
-                // {bright: [1], hot: [1], on: []},
-                // {bright: 0, hot: 0, on: 0.2},
-                // "most lightbulbs are off"
-            // )
-        // ]);
-    // };
 
     // Sample an experiment
     // TODO: For now, omit structure
@@ -453,14 +444,10 @@ var infrastructure = function() {
     var ySample = function(x) {
         if (x.type === 'structure') {
             return uniformDraw([-1, 0, 1]);
-            // Responses on marginal/conditionals are continuous
         } else if (x.type === 'marginal' || x.type === 'conditional') {
-            // Totally uninformative prior
-            if (discrete) {
-                return uniformDraw(judgments);
-            } else {
-                return sample(Beta({a: 1, b: 1}));
-            }
+            return (discrete) ?
+                uniformDraw(judgments) :
+                sample(judgmentsPrior);
         } else {
             err("unknown x type " + x.type);
         }

@@ -22,7 +22,7 @@ module.exports = function(grunt) {
         nonull: true
       }
     },
-    clean: ['bundle/*.js'],
+    clean: ['dist/*.js'],
     uglify: {
       options: {
         banner: '<%= banner %>'
@@ -129,6 +129,20 @@ module.exports = function(grunt) {
 	});
   });
 
+  // Pseudo-browserify
+  grunt.registerTask('browserify', 'Generate "dist/adaptive.js".', function() {
+    var done = this.async();
+
+    grunt.util.spawn({
+      cmd: './concat',
+    }, function(err, result, code) {
+      if (err) {
+        grunt.fail.fatal(err, code);
+      }
+      done();
+    });
+  });
+
   // Default task.
-  grunt.registerTask('default', ['jshint', 'concat', 'uglify']);
+  grunt.registerTask('default', ['browserify']);
 };

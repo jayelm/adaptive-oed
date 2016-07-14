@@ -1,0 +1,10 @@
+#!/bin/sh
+
+# Psuedo-browserify
+mkdir -p dist
+tail -n +2 adaptive.js > dist/adaptive.shim
+cat ./webppl.min.js dist/adaptive.shim > dist/adaptive.js
+rm dist/adaptive.shim
+
+# Minify
+uglifyjs dist/adaptive.js -b ascii_only=true,beautify=false > dist/adaptive.min.js

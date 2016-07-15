@@ -14,8 +14,7 @@ var runCLI = function(aoed, args) {
             // Log all expts except ignore KLDist
             for (var i = 0; i < expts.length; i++) {
                 var expt = expts[i];
-                // TEMP: for booleans
-                console.log(expt.x.text, "(" + expt.EIG + ")");
+                console.log(expt.x, "(" + expt.EIG + ")");
             }
         }
         // Get best experiment manually, so that we can display all of them if
@@ -99,4 +98,4 @@ var runCLIAll = function(aoed, args) {
 module.exports = {
     runCLI: runCLI,
     runCLIAll: runCLIAll
-}
+};

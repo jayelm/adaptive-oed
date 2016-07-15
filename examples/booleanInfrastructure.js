@@ -6,7 +6,7 @@ var infrastructure = function() {
     var N = 100;
 
     // Should we Enumerate with the discrete probabilities?
-    var discrete = true;
+    var discrete = false;
     // Should we remove dependent clause models from the model space?
     var simpleSpace = true;
 
@@ -459,41 +459,37 @@ var infrastructure = function() {
         Y: ySample,
         infer: {
             M1: !discrete && function(thunk) {
-                console.log('mcmc');
                 Infer({
                     method: 'MCMC',
                     kernel: 'MH',
                     samples: 10000,
-                    burn: 5000,
+                    burn: 1000,
+                    verbose: true
                 }, thunk);
             },
             M2: !discrete && function(thunk) {
-                console.log('mcmc');
                 Infer({
                     method: 'MCMC',
-                    kernel: 'MH',
+                    kernel: 'HMC',
                     samples: 500,
                     burn: 100,
+                    verbose: true
                 }, thunk);
             },
             X: Enumerate,
-            // Only 6, but if using predictive y, then need approximation
-            // Y: function(thunk) {
-                // Infer({
-                    // method: 'enumerate',
-                    // maxExecutions: 600,
-                    // // See notes on likelyFirst favoring MAP
-                    // strategy: 'likelyFirst'
-                // }, thunk);
-            // }
+            // Could use likely-first Enumeration. Idea: likelyfirst inherently
+            // favors the top estimates. But might favor it too much.
             Y: !discrete && function(thunk) {
-                console.log('mcmc');
                 Infer({
                     method: 'MCMC',
+                    // HMC doesn't work - discrete?
                     kernel: 'MH',
-                    samples: 10,
+                    samples: 1000,
+                    burn: 100,
+                    verbose: true
+                    // See notes on likelyFirst favoring MAP
                 }, thunk);
-            }
+            },
         }
     };
 };

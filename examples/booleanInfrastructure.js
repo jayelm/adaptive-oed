@@ -6,9 +6,12 @@ var infrastructure = function() {
     var N = 100;
 
     // Should we Enumerate with the discrete probabilities?
-    var discrete = false;
+    var discrete = true;
     // Should we remove dependent clause models from the model space?
     var simpleSpace = true;
+    // Do I restrict background causes of nodes with parents to be [0, 0.5]?
+    // TODO Implement
+    var useCausedProbs = true;
 
     // DISCRETE & CONTINUOUS MODEL JUDGMENTS
 
@@ -203,15 +206,15 @@ var infrastructure = function() {
     };
 
     // XXX: To cache or not to cache?
-    var marginal = cache(function(jpd, ids, a) {
+    var marginal = function(jpd, ids, a) {
         return reduce(function(row, prob) {
             var assns = row[0];
             var p = row[1];
             return (assns[ids[a]]) ? prob + p : prob;
         }, 0, jpd);
-    });
+    };
 
-    var conditional = cache(function(jpd, ids, a, cond) {
+    var conditional = function(jpd, ids, a, cond) {
         // The accumulator is [P(A, cond), P(cond)]
         var probs = reduce(function(row, probs) {
             var assns = row[0];
@@ -236,7 +239,7 @@ var infrastructure = function() {
         } else {
             return probs[0] / probs[1];
         }
-    });
+    };
 
     var prettyPrint = function(dag) {
         return dag.toString();
@@ -284,8 +287,7 @@ var infrastructure = function() {
                 err("unknown type " + x.type);
             }
         };
-        // Don't encode JPDs into model name, too verbose
-        var mName = modelName || JSON.stringify([aList, aWeights, aPriors]);
+        var mName = modelName || JSON.stringify([aList, aWeights, aPriors, jpd]);
         return Model(mName, dagModel);
     };
 
@@ -489,7 +491,7 @@ var infrastructure = function() {
                     verbose: true
                     // See notes on likelyFirst favoring MAP
                 }, thunk);
-            },
+            }
         }
     };
 };

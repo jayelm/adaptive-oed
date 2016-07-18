@@ -23,8 +23,6 @@ for (var i = 0; i < expts.length; i++) {
     cols.push('E' + (i + 1)); // R array indexing
 }
 
-console.log(cols);
-
 // Marginal and conditional functions imported from booleanInfrastructure.js
 // and reworked for _.reduce
 var marginal = function(jpd, ids, a) {

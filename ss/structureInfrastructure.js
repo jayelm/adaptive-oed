@@ -306,8 +306,8 @@ var infrastructure = function() {
 
     var enumerateJPD = function(aList) {
         var jpdDist = Enumerate(function() {
-            // var aPriors = sampleDumbPriors(aList);
-            var aPriors = samplePriors(aList);
+            var aPriors = sampleDumbPriors(aList);
+            // var aPriors = samplePriors(aList);
             var aWeights = sampleWeights(aList);
             // console.log(aList, aWeights, aPriors);
 

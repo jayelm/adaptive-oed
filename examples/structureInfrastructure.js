@@ -416,7 +416,7 @@ var infrastructure = function() {
             // Assign random varible to each rest
             var condNodes = sampleN(rest, condAmt);
             var cond = _.object(
-                condNodes,
+                sort(condNodes),
                 repeat(condAmt, flip)
             );
             return {

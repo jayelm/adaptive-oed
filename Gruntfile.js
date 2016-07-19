@@ -105,7 +105,7 @@ module.exports = function(grunt) {
       // Now run grunt to bundle into webppl.min.js
       grunt.util.spawn({
         grunt: true,
-        args: ['bundle:../webppl-oed/:../underscore/:../webppl-dp/'],
+        args: ['bundle:../webppl-oed/:../underscore/'],
         opts: {
           cwd: './node_modules/webppl/'
         }

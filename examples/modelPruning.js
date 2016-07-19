@@ -3,6 +3,10 @@ var acli = require('../acli');
 var infrastructure = require('./booleanInfrastructure.js');
 var _ = require('underscore');
 
+// If you drop model names, this thing takes up much less memory
+// if you're actually interested in calculating the MAP, then do so, but later
+var USE_MODEL_NAMES = false;
+
 var args = {
     usePredictiveY: true,
     returnKL: true,
@@ -13,10 +17,15 @@ var expts = [
     [{type: 'conditional', a: 'on', cond: {bright: true, hot: true}}, 0.9],
     [{type: 'marginal', a: 'on'}, 0.5],
     [{type: 'conditional', a: 'bright', cond: {hot: true}}, 0.9],
+    [{type: 'marginal', a: 'hot'}, 0.5],
+    [{type: 'conditional', a: 'hot', cond: {bright: true}}, 0.9],
+    [{type: 'marginal', a: 'bright'}, 0.5],
+    [{type: 'conditional', a: 'on', cond: {bright: false}}, 0.1],
+    [{type: 'conditional', a: 'hot', cond: {bright: false}}, 0.2]
 ];
 
 var cols = [
-    'trial', 'model', 'll', 'p'
+    'trial', 'model', 'll', 'p', 'resp'
 ];
 
 for (var i = 0; i < expts.length; i++) {
@@ -98,9 +107,10 @@ for (var i = 0; i < expts.length; i++) {
 
         var row = {
             trial: i + 1,
-            model: model.name,
+            model: (USE_MODEL_NAMES) ? model.name : null,
             ll: mScore,
-            p: Math.exp(mScore)
+            p: Math.exp(mScore),
+            resp: resp
         };
 
         // Compute model predictions for probabilities for experiments

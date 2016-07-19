@@ -17,24 +17,33 @@ var infrastructure = function() {
 
     // With these weights, there are probably something like 100k models
     var probs = [
-        0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0
+        0.5
     ];
+    // var probs = [
+        // 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0
+    // ];
     // Uniform prior
     var probsPrior = Beta({a:1, b: 1});
 
     // ASSUMPTION: If C is caused by B, then C doesn't occur often by itself
     // (intuitively; e.g. Griffiths & Tenenbaum 2005)
     var causedProbs = [
-        0.0, 0.1, 0.2, 0.3, 0.4, 0.5
+        0.5
     ];
+    // var causedProbs = [
+        // 0.0, 0.1, 0.2, 0.3, 0.4, 0.5
+    // ];
     // Skewed towards 0
     var causedProbsPrior = Beta({a: 5, b: 1});
 
     // ASSUMPTION: if a cause exists, then the cause is strong (0.5 - 1.0)
     // The *strong* part of *sparse and strong* priors (Lu 2008)
     var weights = [
-        0.5, 0.6, 0.7, 0.8, 0.9, 1
+        0.5
     ];
+    // var weights = [
+        // 0.5, 0.6, 0.7, 0.8, 0.9, 1
+    // ];
     // Skewed towards 1
     var weightsPrior = Beta({a: 1, b: 5});
 
@@ -467,7 +476,7 @@ var infrastructure = function() {
                     kernel: 'MH',
                     samples: 10000,
                     burn: 1000,
-                    verbose: true
+                    // verbose: true
                 }, thunk);
             },
             M2: !discrete && function(thunk) {
@@ -476,7 +485,7 @@ var infrastructure = function() {
                     kernel: 'HMC',
                     samples: 500,
                     burn: 100,
-                    verbose: true
+                    // verbose: true
                 }, thunk);
             },
             X: Enumerate,
@@ -489,7 +498,7 @@ var infrastructure = function() {
                     kernel: 'MH',
                     samples: 1000,
                     burn: 100,
-                    verbose: true
+                    // verbose: true
                     // See notes on likelyFirst favoring MAP
                 }, thunk);
             }

@@ -207,11 +207,12 @@ var infrastructure = function() {
 
     // XXX: To cache or not to cache?
     var marginal = function(jpd, ids, a) {
-        return reduce(function(row, prob) {
+        // Due to floating point errors, this is sometimes slightly > 1
+        return Math.min(1, reduce(function(row, prob) {
             var assns = row[0];
             var p = row[1];
             return (assns[ids[a]]) ? prob + p : prob;
-        }, 0, jpd);
+        }, 0, jpd));
     };
 
     var conditional = function(jpd, ids, a, cond) {
@@ -237,7 +238,7 @@ var infrastructure = function() {
             // This was never possible, return 0
             return 0;
         } else {
-            return probs[0] / probs[1];
+            return Math.min(1, probs[0] / probs[1]);
         }
     };
 

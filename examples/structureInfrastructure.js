@@ -2,6 +2,7 @@ var infrastructure = function() {
     var _ = underscore;
 
     var nodes = ['bright', 'on', 'hot'];
+    var thing = 'lightbulbs';
     // Quantity asked
     var N = 100;
 
@@ -401,7 +402,7 @@ var infrastructure = function() {
                 type: xType,
                 a: a,
                 name: (
-                    "Imagine 100 x. How many are " + a +
+                    "Imagine 100 " + thing + ". How many are " + a +
                     "? in [0, 1]"
                 )
             };
@@ -422,7 +423,7 @@ var infrastructure = function() {
                 a: a,
                 cond: cond,
                 name: (
-                    "Imagine 100 x that are " + conditionStr(cond) +
+                    "Imagine 100 " + thing + " that are " + conditionStr(cond) +
                     ". What proportion are " + a +
                     "? in [0, 1]"
                 ),

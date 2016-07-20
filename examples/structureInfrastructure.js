@@ -245,7 +245,7 @@ var infrastructure = function() {
                     var score = Binomial({
                         n: N,
                         p: marginalEst
-                    }).score(Math.round(y * N));
+                    }).score(Math.round(y.y * N));
 
                     return (score === null) ? -Infinity : score;
                 });
@@ -257,7 +257,7 @@ var infrastructure = function() {
                     var score = Binomial({
                         n: N,
                         p: conditionalEst
-                    }).score(Math.round(y * N));
+                    }).score(Math.round(y.y * N));
 
                     return (score === null) ? -Infinity : score;
                 });
@@ -389,7 +389,7 @@ var infrastructure = function() {
                 type: xType,
                 child: child,
                 parent: parent,
-                text: (
+                name: (
                     "Does " + parent +
                     " cause " + child +
                     "[1], prevent " + child +
@@ -401,7 +401,7 @@ var infrastructure = function() {
             return {
                 type: xType,
                 a: a,
-                text: (
+                name: (
                     "Imagine 100 x. How many are " + a +
                     "? in [0, 1]"
                 )
@@ -422,22 +422,30 @@ var infrastructure = function() {
                 type: xType,
                 a: a,
                 cond: cond,
-                text: (
+                name: (
                     "Imagine 100 x that are " + conditionStr(cond) +
                     ". What proportion are " + a +
                     "? in [0, 1]"
-                )
+                ),
             };
         }
     };
 
     var ySample = function(x) {
         if (x.type === 'structure') {
-            return uniformDraw([-1, 0, 1]);
+            var y = uniformDraw([-1, 0, 1]);
+            return {
+                y: y,
+                name: y.toString()
+            };
         } else if (x.type === 'marginal' || x.type === 'conditional') {
-            return (discrete) ?
+            var y = (discrete) ?
                 sample(judgments) :
                 sample(judgmentsPrior);
+            return {
+                y: y,
+                name: y.toString()
+            };
         } else {
             err("unknown x type " + x.type);
         }

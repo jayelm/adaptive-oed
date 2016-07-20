@@ -3,11 +3,24 @@ var mode = 'structure';
 
 var maxGraph = {
     name: 'default',
-    aList: {bright: ['hot', 'on'], hot: ['bright', 'on'], on: ['bright', 'hot']},
-    aWeights: {bright: [0, 0], hot: [0, 0], on: [0, 0]},
-    aPriors: {bright: 1, hot: 1, on: 1},
+    aList: {},
+    aWeights: {},
+    aPriors: {},
     p: 1
 };
+
+var nodes = ['bright', 'on', 'hot'];
+
+for (var i = 0; i < nodes.length; i++) {
+    var curr = nodes[i];
+    var rest = _.without(nodes, curr);
+    maxGraph.aList[curr] = rest;
+    maxGraph.aWeights[curr] = [];
+    for (var j = 0; j < rest.length; j++) {
+        maxGraph.aWeights[curr].push(NaN);
+    }
+    maxGraph.aPriors[curr] = NaN;
+}
 
 var selExpt = -1;
 var started = false;
@@ -93,13 +106,17 @@ function suggest() {
         usePredictiveY: true,
         returnKL: true,
         verbose: true,
-        cache: cache
+        cache: structureCache
     });
     expts = _.sortBy(exptsUnordered, function(k) {
         return -k.EIG;
     });
     displayAllExpts();
 }
+
+function makeY(y) {
+    return {y: y, name: y.toString()}
+};
 
 function update() {
     $('#models').html('updating').show();
@@ -112,7 +129,7 @@ function update() {
         throw e;
     }
     var expt = expts[selExpt];
-    var updated = aoed.update(prior, expt.x, res, {cache: cache});
+    var updated = aoed.update(prior, expt.x, makeY(res), {cache: structureCache});
     prior = updated.mPosterior;
     $('#aig').text("AIG: " + updated.AIG.toFixed(3));
 
@@ -143,7 +160,7 @@ function parsePrior() {
                     return NaN;
                 });
             }),
-            aPriors: {bright: 0.5, hot: 0.5, on: 0.5},
+            aPriors: maxGraph.aPriors,
             jpd: null,
             p: Math.exp(prior.score(e))
         });
@@ -183,7 +200,7 @@ function displayAllExpts() {
         exptStr += (
             '<tr class="expttr" exptno="' + i + '">' +
             '<td>' + x.type + '</td>' +
-            '<td>' + x.text + '</td>' +
+            '<td>' + x.name + '</td>' +
             '<td>' + EIG.toFixed(3) + '</td>' +
             '</tr>'
         );

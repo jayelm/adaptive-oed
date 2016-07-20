@@ -92,7 +92,8 @@ function suggest() {
     exptsUnordered = aoed.suggestAll(prior, {
         usePredictiveY: true,
         returnKL: true,
-        verbose: true
+        verbose: true,
+        cache: cache
     });
     expts = _.sortBy(exptsUnordered, function(k) {
         return -k.EIG;
@@ -111,7 +112,7 @@ function update() {
         throw e;
     }
     var expt = expts[selExpt];
-    var updated = aoed.update(prior, expt.x, res);
+    var updated = aoed.update(prior, expt.x, res, {cache: cache});
     prior = updated.mPosterior;
     $('#aig').text("AIG: " + updated.AIG.toFixed(3));
 

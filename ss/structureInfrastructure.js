@@ -3,39 +3,38 @@ var infrastructure = function() {
 
     var nodes = ['bright', 'on', 'hot'];
     // Quantity asked
-    var N = 10;
+    var N = 100;
 
+    // Make model enumeration very quick, by fixing background probabilities to
+    // 0.5. Used for iteration
+    var trivial = false;
     // Should we Enumerate with the discrete probabilities?
     var discrete = true;
     // Should we remove dependent clause models from the model space?
     var simpleSpace = true;
 
-    // TODO: Add support for binsizes other than 0.1 (finicky)
-    var discretizeBeta = function(bd, binWidth, nSamples) {
+    var roundTo = function(n, mult) {
+        return mult * Math.round(n / mult);
+    };
+
+    var discretizeBeta = function(bd, binWidth, nSamples, keepZeros) {
         return Infer({method: 'rejection', samples: nSamples}, function() {
-            // XXX: Slow, but Number() doesn't work??
-            return JSON.parse(sample(bd).toFixed(1));
+            var samp = sample(bd);
+            var rounded = roundTo(samp, binWidth);
+            if (!keepZeros) {
+                // For structural weights, it doesn't make sense to have 0
+                // probabilities
+                condition(rounded !== 0);
+            }
+            return rounded;
         });
     };
 
-    var logsumexpectation = function(erp) {
-        return util.logsumexp(
-            map(function(state) { return score(erp, state) + state; },
-                erp.support())
-        );
-    };
+    // Uniform background probabilities and judgments
+    var probs = discretizeBeta(Beta({a: 1, b: 1}), 0.2, 100000, true);
+    var probsPrior = Beta({a: 1, b: 1});
 
-    // var probs = Categorical({
-        // ps: repeat(11, function() { return 0.0909090909; }),
-        // vs: mapN(function(i) { return i / 10; }, 11)
-    // });
-    var probs = Categorical({
-        ps: [1/3, 1/3, 1/3],
-        vs: [0.25, 0.5, 0.75]
-    });
-    var probsPrior = Beta({a:1, b: 1});
-
-    var weights = discretizeBeta(Beta({a: 5, b: 1}), 0.1, 100000);
+    var weights = discretizeBeta(Beta({a: 5, b: 1}), 0.2, 100000, false);
     var weightsPrior = Beta({a: 5, b: 1});  // Skewed towards 1 (*strong*)
 
     // Since probs encompass [0, 1], make judgments the same
@@ -230,13 +229,11 @@ var infrastructure = function() {
 
         // Internal numerical IDs for ordering of JPDS
         var ids = _.object(Object.keys(aList), _.range(Object.keys(aList).length));
-        // XXX: Interesting to cache here - should save most of the time, but
-        // if subject responses are extra precise (i.e. not included in
-        // judgments) then this will unnecessarily cache them. However, memory
-        // overhead is neglegible
         // TODO: Only works reliably w/ Enumerate (so that this is
         // deterministic)
-        var dagModel = cache(function(x, y) {
+        // Don't cache, since we're caching outside of this
+        var dagModel = function(x, y) {
+            console.log('Scoring');
             if (x.type === 'structure') {
                 err('structure not implemented for this model');
             } else if (x.type === 'marginal') {
@@ -246,7 +243,7 @@ var infrastructure = function() {
                     var score = Binomial({
                         n: N,
                         p: marginalEst
-                    }).score(Math.round(y * N));
+                    }).score(Math.round(y.y * N));
 
                     return (score === null) ? -Infinity : score;
                 });
@@ -258,7 +255,7 @@ var infrastructure = function() {
                     var score = Binomial({
                         n: N,
                         p: conditionalEst
-                    }).score(Math.round(y * N));
+                    }).score(Math.round(y.y * N));
 
                     return (score === null) ? -Infinity : score;
                 });
@@ -266,7 +263,7 @@ var infrastructure = function() {
             } else {
                 err("unknown type " + x.type);
             }
-        });
+        };
         var mName = modelName || JSON.stringify([aList]);
         return Model(mName, dagModel);
     };
@@ -300,16 +297,17 @@ var infrastructure = function() {
     // ONLY return 0.5 and see if it works
     var sampleDumbPriors = function(aList) {
         return pamObject(aList, function(child, parents) {
-            return 0.50;
+            return 0.5;
         });
     };
 
     var enumerateJPD = function(aList) {
         var jpdDist = Enumerate(function() {
-            var aPriors = sampleDumbPriors(aList);
-            // var aPriors = samplePriors(aList);
+            var aPriors = (trivial) ?
+                sampleDumbPriors(aList) :
+                samplePriors(aList);
+
             var aWeights = sampleWeights(aList);
-            // console.log(aList, aWeights, aPriors);
 
             return JPD(aList, aWeights, aPriors);
         });
@@ -390,7 +388,7 @@ var infrastructure = function() {
                 type: xType,
                 child: child,
                 parent: parent,
-                text: (
+                name: (
                     "Does " + parent +
                     " cause " + child +
                     "[1], prevent " + child +
@@ -402,7 +400,7 @@ var infrastructure = function() {
             return {
                 type: xType,
                 a: a,
-                text: (
+                name: (
                     "Imagine 100 x. How many are " + a +
                     "? in [0, 1]"
                 )
@@ -423,22 +421,30 @@ var infrastructure = function() {
                 type: xType,
                 a: a,
                 cond: cond,
-                text: (
+                name: (
                     "Imagine 100 x that are " + conditionStr(cond) +
                     ". What proportion are " + a +
                     "? in [0, 1]"
-                )
+                ),
             };
         }
     };
 
     var ySample = function(x) {
         if (x.type === 'structure') {
-            return uniformDraw([-1, 0, 1]);
+            var y = uniformDraw([-1, 0, 1]);
+            return {
+                y: y,
+                name: y.toString()
+            };
         } else if (x.type === 'marginal' || x.type === 'conditional') {
-            return (discrete) ?
+            var y = (discrete) ?
                 sample(judgments) :
                 sample(judgmentsPrior);
+            return {
+                y: y,
+                name: y.toString()
+            };
         } else {
             err("unknown x type " + x.type);
         }

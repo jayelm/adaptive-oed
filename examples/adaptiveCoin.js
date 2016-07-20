@@ -7,7 +7,7 @@ var infrastructure = makeInfrastructure({nullGroup: true});
 var args = {
     usePredictiveY: false,
     returnKL: true
-}
+};
 
 var aoed = adaptive.AOED(infrastructure);
 

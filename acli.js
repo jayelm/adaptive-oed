@@ -50,7 +50,7 @@ var runCLI = function(aoed, args) {
         });
     };
 
-    repeatUpdate(aoed.initialPrior);
+    repeatUpdate(args.mPrior || aoed.initialPrior);
 };
 
 // Like runCLI but doesn't force you to choose the best experiment
@@ -92,7 +92,7 @@ var runCLIAll = function(aoed, args) {
         });
     };
 
-    repeatUpdate(aoed.initialPrior);
+    repeatUpdate(args.mPrior || aoed.initialPrior);
 };
 
 module.exports = {

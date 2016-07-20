@@ -32,7 +32,7 @@ console.log('Initial # models: ', aoed.initialPrior.support().length);
 var initialPrior = _.reduce(expts, function(prior, expt) {
     console.log('Running:', expt);
 
-    var res = aoed.update(prior, expt[0], expt[1], pruneArgs);
+    var res = aoed.update(prior, expt[0], expt[1], {prune: pruneArgs});
 
     console.log('Done');
     console.log('# Models:', res.mPosterior.support().length);

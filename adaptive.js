@@ -24,7 +24,8 @@ var makeSkeleton = function(infraThunk) {
         suggestExperiment: function() {
             var mPrior = globalStore.mPrior,
                 usePredictiveY = globalStore.usePredictiveY,
-                returnKL = globalStore.returnKL;
+                returnKL = globalStore.returnKL,
+                cache = globalStore.cache;
 
             var eigs = EIG({
                 mPrior: mPrior,
@@ -32,7 +33,8 @@ var makeSkeleton = function(infraThunk) {
                 Y: args.Y,
                 infer: args.infer,
                 usePredictiveY: usePredictiveY,
-                returnKL: returnKL
+                returnKL: returnKL,
+                cache: cache
             });
 
             return getBestExpt(eigs.support());
@@ -41,7 +43,8 @@ var makeSkeleton = function(infraThunk) {
         suggestAll: function() {
             var mPrior = globalStore.mPrior,
                 usePredictiveY = globalStore.usePredictiveY,
-                returnKL = globalStore.returnKL;
+                returnKL = globalStore.returnKL,
+                cache = globalStore.cache;
 
             var eigs = EIG({
                 mPrior: mPrior,
@@ -49,7 +52,8 @@ var makeSkeleton = function(infraThunk) {
                 Y: args.Y,
                 infer: args.infer,
                 usePredictiveY: usePredictiveY,
-                returnKL: returnKL
+                returnKL: returnKL,
+                cache: cache
             });
 
             return eigs.support();
@@ -58,7 +62,8 @@ var makeSkeleton = function(infraThunk) {
         updateBeliefs: function() {
             var x = globalStore.x,
                 y = globalStore.y,
-                mPrior = globalStore.mPrior;
+                mPrior = globalStore.mPrior,
+                cache = globalStore.cache;
 
             // FIXME: These functions really ought to be converted to args
             // objects
@@ -70,7 +75,8 @@ var makeSkeleton = function(infraThunk) {
                 mPrior: mPrior,
                 x: x,
                 y: y,
-                infer: args.infer // infrastructure
+                infer: args.infer,
+                cache: cache
             });
 
             if (res.mPosterior.support().length > pruneMin) {
@@ -82,6 +88,10 @@ var makeSkeleton = function(infraThunk) {
             } else {
                 return res;
             }
+        },
+
+        cache: function() {
+            return cacheScores(args);
         }
     };
 };
@@ -105,12 +115,14 @@ var compileSkeleton = function(skeleton) {
     var suggestAllStr = getThunkBody(skeleton.suggestAll);
     var updateStr = getThunkBody(skeleton.updateBeliefs);
     var initialStr = getThunkBody(skeleton.initializePrior);
+    var cacheStr = getThunkBody(skeleton.cache);
 
     // Concat common with the other objects
     var suggestSrc = webppl.compile(commonStr + suggestStr);
     var updateSrc = webppl.compile(commonStr + updateStr);
     var initialSrc = webppl.compile(commonStr + initialStr);
     var suggestAllSrc = webppl.compile(commonStr + suggestAllStr);
+    var cacheSrc = webppl.compile(commonStr + cacheStr);
 
     var handleRunError = function(e) {
         // Just log it for now?
@@ -140,7 +152,8 @@ var compileSkeleton = function(skeleton) {
         var globalStore = {
             mPrior: mPrior,
             usePredictiveY: !!args.usePredictiveY,
-            returnKL: !!args.returnKL
+            returnKL: !!args.returnKL,
+            cache: args.cache
         };
         var _code = eval.call({}, suggestSrc)(runner);
         var res = {};
@@ -153,7 +166,8 @@ var compileSkeleton = function(skeleton) {
         var globalStore = {
             mPrior: mPrior,
             usePredictiveY: !!args.usePredictiveY,
-            returnKL: !!args.returnKL
+            returnKL: !!args.returnKL,
+            cache: args.cache
         };
         var _code = eval.call({}, suggestAllSrc)(runner);
         var res = {};
@@ -162,12 +176,13 @@ var compileSkeleton = function(skeleton) {
     };
     aoed.suggestAll = suggestAll;
 
-    var update = function(mPrior, x, y, prune) {
+    var update = function(mPrior, x, y, args) {
         var globalStore = {
             mPrior: mPrior,
             x: x,
             y: y,
-            prune: prune
+            prune: args.prune,
+            cache: args.cache
         };
         var _code = eval.call({}, updateSrc)(runner);
         var res = {};
@@ -175,6 +190,14 @@ var compileSkeleton = function(skeleton) {
         return res.returnValue;
     };
     aoed.update = update;
+
+    var cache = function() {
+        var _code = eval.call({}, cacheSrc)(runner);
+        var res = {};
+        _code({}, makeStoreFunc(res), '');
+        return res.returnValue;
+    };
+    aoed.cache = cache;
 
     // Actually call the initialize source code to get the first model prior
     var initialPrior = eval.call({}, initialSrc)(runner);

@@ -44,7 +44,7 @@ var runCLI = function(aoed, args) {
                 return 1;
             }
             var y = JSON.parse(result.expt);
-            var res = aoed.update(prior, x, y);
+            var res = aoed.update(prior, x, y, args);
             console.log("AIG: " + res.AIG);
             repeatUpdate(res.mPosterior);
         });

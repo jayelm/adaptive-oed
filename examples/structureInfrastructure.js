@@ -7,7 +7,7 @@ var infrastructure = function() {
 
     // Make model enumeration very quick, by fixing background probabilities to
     // 0.5. Used for iteration
-    var trivial = true;
+    var trivial = false;
     // Should we Enumerate with the discrete probabilities?
     var discrete = true;
     // Should we remove dependent clause models from the model space?
@@ -177,16 +177,16 @@ var infrastructure = function() {
     };
 
     // XXX: To cache or not to cache?
-    var marginal = cache(function(jpd, ids, a) {
+    var marginal = function(jpd, ids, a) {
         // Due to floating point errors, this is sometimes slightly > 1
         return Math.min(1, reduce(function(row, prob) {
             var assns = row[0];
             var p = row[1];
             return (assns[ids[a]]) ? prob + p : prob;
         }, 0, jpd));
-    });
+    };
 
-    var conditional = cache(function(jpd, ids, a, cond) {
+    var conditional = function(jpd, ids, a, cond) {
         // The accumulator is [P(A, cond), P(cond)]
         var probs = reduce(function(row, probs) {
             var assns = row[0];
@@ -211,7 +211,7 @@ var infrastructure = function() {
         } else {
             return Math.min(1, probs[0] / probs[1]);
         }
-    });
+    };
 
     var prettyPrint = function(dag) {
         return dag.toString();
@@ -229,13 +229,11 @@ var infrastructure = function() {
 
         // Internal numerical IDs for ordering of JPDS
         var ids = _.object(Object.keys(aList), _.range(Object.keys(aList).length));
-        // XXX: Interesting to cache here - should save most of the time, but
-        // if subject responses are extra precise (i.e. not included in
-        // judgments) then this will unnecessarily cache them. However, memory
-        // overhead is neglegible
         // TODO: Only works reliably w/ Enumerate (so that this is
         // deterministic)
-        var dagModel = cache(function(x, y) {
+        // Don't cache, since we're caching outside of this
+        var dagModel = function(x, y) {
+            console.log('Scoring');
             if (x.type === 'structure') {
                 err('structure not implemented for this model');
             } else if (x.type === 'marginal') {
@@ -265,7 +263,7 @@ var infrastructure = function() {
             } else {
                 err("unknown type " + x.type);
             }
-        });
+        };
         var mName = modelName || JSON.stringify([aList]);
         return Model(mName, dagModel);
     };

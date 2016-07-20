@@ -9,7 +9,8 @@ var maxGraph = {
     p: 1
 };
 
-var nodes = ['bright', 'on', 'hot'];
+// Make sure alphabetized
+var nodes = ['bright', 'hot', 'on'];
 
 for (var i = 0; i < nodes.length; i++) {
     var curr = nodes[i];

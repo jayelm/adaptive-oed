@@ -23,12 +23,20 @@ var expts = [
 ];
 
 var pruneArgs = {
-    min: 5,
-    keepPercent: 0.7
+    min: 7500,
+    keepPercent: 0.33
 };
 
+console.log('Initial # models: ', aoed.initialPrior.support().length);
+
 var initialPrior = _.reduce(expts, function(prior, expt) {
+    console.log('Running:', expt);
+
     var res = aoed.update(prior, expt[0], expt[1], pruneArgs);
+
+    console.log('Done');
+    console.log('# Models:', res.mPosterior.support().length);
+
     return res.mPosterior;
 }, aoed.initialPrior);
 

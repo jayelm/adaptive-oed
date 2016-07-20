@@ -5,6 +5,9 @@ var infrastructure = function() {
     // Quantity asked
     var N = 100;
 
+    // If trivial, then weights/probs only have one option: used to iterate
+    // quickly
+    var trivial = false;
     // Should we Enumerate with the discrete probabilities?
     var discrete = true;
     // Should we remove dependent clause models from the model space?
@@ -16,34 +19,33 @@ var infrastructure = function() {
     // DISCRETE & CONTINUOUS MODEL JUDGMENTS
 
     // With these weights, there are probably something like 100k models
-    var probs = [
+    var probs = (trivial) ? [
         0.5
-    ];
-    // var probs = [
+    ] : [
         // 0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0
-    // ];
+        0.0, 0.1, 0.3, 0.5, 0.7, 0.9, 1.0
+    ];
     // Uniform prior
     var probsPrior = Beta({a:1, b: 1});
 
     // ASSUMPTION: If C is caused by B, then C doesn't occur often by itself
     // (intuitively; e.g. Griffiths & Tenenbaum 2005)
-    var causedProbs = [
+    var causedProbs = (trivial) ? [
         0.5
-    ];
-    // var causedProbs = [
+    ] : [
         // 0.0, 0.1, 0.2, 0.3, 0.4, 0.5
-    // ];
+        0.0, 0.1, 0.3, 0.5
+    ];
     // Skewed towards 0
     var causedProbsPrior = Beta({a: 5, b: 1});
 
     // ASSUMPTION: if a cause exists, then the cause is strong (0.5 - 1.0)
     // The *strong* part of *sparse and strong* priors (Lu 2008)
-    var weights = [
+    var weights = (trivial) ? [
         0.5
+    ] : [
+        0.5, 0.7, 0.9, 1
     ];
-    // var weights = [
-        // 0.5, 0.6, 0.7, 0.8, 0.9, 1
-    // ];
     // Skewed towards 1
     var weightsPrior = Beta({a: 1, b: 5});
 

@@ -10,19 +10,18 @@ var infrastructure = function() {
     // Should we remove dependent clause models from the model space?
     var simpleSpace = true;
 
-    // TODO: Add support for binsizes other than 0.1 (finicky)
-    var discretizeBeta = function(bd, binWidth, nSamples) {
-        return Infer({method: 'rejection', samples: nSamples}, function() {
-            // XXX: Slow, but Number() doesn't work??
-            return JSON.parse(sample(bd).toFixed(1));
-        });
+    var roundTo = function(n, mult) {
+        return mult * Math.round(n / mult);
     };
 
-    var logsumexpectation = function(erp) {
-        return util.logsumexp(
-            map(function(state) { return score(erp, state) + state; },
-                erp.support())
-        );
+    var discretizeBeta = function(bd, binWidth, nSamples) {
+        return Infer({method: 'rejection', samples: nSamples}, function() {
+            var samp = sample(bd);
+            var rounded = roundTo(samp, binWidth);
+            // Doesn't make sense to have weight 0 structural weight
+            condition(rounded !== 0);
+            return rounded;
+        });
     };
 
     // var probs = Categorical({
@@ -35,7 +34,7 @@ var infrastructure = function() {
     });
     var probsPrior = Beta({a:1, b: 1});
 
-    var weights = discretizeBeta(Beta({a: 5, b: 1}), 0.1, 100000);
+    var weights = discretizeBeta(Beta({a: 5, b: 1}), 0.2, 100000);
     var weightsPrior = Beta({a: 5, b: 1});  // Skewed towards 1 (*strong*)
 
     // Since probs encompass [0, 1], make judgments the same
@@ -306,8 +305,8 @@ var infrastructure = function() {
 
     var enumerateJPD = function(aList) {
         var jpdDist = Enumerate(function() {
-            var aPriors = sampleDumbPriors(aList);
-            // var aPriors = samplePriors(aList);
+            // var aPriors = sampleDumbPriors(aList);
+            var aPriors = samplePriors(aList);
             var aWeights = sampleWeights(aList);
             // console.log(aList, aWeights, aPriors);
 

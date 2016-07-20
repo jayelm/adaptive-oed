@@ -176,13 +176,13 @@ var compileSkeleton = function(skeleton) {
     };
     aoed.suggestAll = suggestAll;
 
-    var update = function(mPrior, x, y, args) {
+    var update = function(mPrior, x, y, opts) {
         var globalStore = {
             mPrior: mPrior,
             x: x,
             y: y,
-            prune: args.prune,
-            cache: args.cache
+            prune: opts && opts.prune,
+            cache: opts && opts.cache
         };
         var _code = eval.call({}, updateSrc)(runner);
         var res = {};

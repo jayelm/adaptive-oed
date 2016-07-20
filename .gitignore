@@ -78,3 +78,4 @@ vignettes/*.pdf
 # Project-specific
 # Not needed, build yourself
 webppl.min.js
+cache/*

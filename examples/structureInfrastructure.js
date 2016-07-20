@@ -14,27 +14,24 @@ var infrastructure = function() {
         return mult * Math.round(n / mult);
     };
 
-    var discretizeBeta = function(bd, binWidth, nSamples) {
+    var discretizeBeta = function(bd, binWidth, nSamples, keepZeros) {
         return Infer({method: 'rejection', samples: nSamples}, function() {
             var samp = sample(bd);
             var rounded = roundTo(samp, binWidth);
-            // Doesn't make sense to have weight 0 structural weight
-            condition(rounded !== 0);
+            if (!keepZeros) {
+                // For structural weights, it doesn't make sense to have 0
+                // probabilities
+                condition(rounded !== 0);
+            }
             return rounded;
         });
     };
 
-    // var probs = Categorical({
-        // ps: repeat(11, function() { return 0.0909090909; }),
-        // vs: mapN(function(i) { return i / 10; }, 11)
-    // });
-    var probs = Categorical({
-        ps: [1/3, 1/3, 1/3],
-        vs: [0.25, 0.5, 0.75]
-    });
-    var probsPrior = Beta({a:1, b: 1});
+    // Uniform background probabilities and judgments
+    var probs = discretizeBeta(Beta({a: 1, b: 1}), 0.2, 100000, true);
+    var probsPrior = Beta({a: 1, b: 1});
 
-    var weights = discretizeBeta(Beta({a: 5, b: 1}), 0.2, 100000);
+    var weights = discretizeBeta(Beta({a: 5, b: 1}), 0.2, 100000, false);
     var weightsPrior = Beta({a: 5, b: 1});  // Skewed towards 1 (*strong*)
 
     // Since probs encompass [0, 1], make judgments the same
@@ -305,8 +302,8 @@ var infrastructure = function() {
 
     var enumerateJPD = function(aList) {
         var jpdDist = Enumerate(function() {
-            // var aPriors = sampleDumbPriors(aList);
-            var aPriors = samplePriors(aList);
+            var aPriors = sampleDumbPriors(aList);
+            // var aPriors = samplePriors(aList);
             var aWeights = sampleWeights(aList);
             // console.log(aList, aWeights, aPriors);
 

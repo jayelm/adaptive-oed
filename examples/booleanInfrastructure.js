@@ -257,6 +257,22 @@ var infrastructure = function() {
         // TODO: Or add jpd property to named model functions?
     };
 
+    // Percentile: numeric, details top n% of the model posterior to keep
+    // Rounds up
+    var pruneModels = function(mPrior, percentile) {
+        var sortedModels = sortOn(mPrior.support(), function(m) {
+            return -mPrior.score(m);
+        });
+        var end = Math.ceil(sortedModels.length * percentile);
+        var pruned = sortedModels.slice(0, end);
+        console.log(pruned);
+        return Enumerate(function() {
+            var m = uniformDraw(pruned);
+            factor(mPrior.score(m));
+            return m;
+        });
+    };
+
     // a DAG functor, taking in an adjacency list (structure), a set of weights
     // (strength), and returning a function that scores experiments according to responses.
     var DAG = function(aList, aWeights, aPriors, modelName) {

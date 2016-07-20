@@ -86,7 +86,7 @@ var runCLIAll = function(aoed, args) {
             }
             var x = JSON.parse(result.expt);
             var y = JSON.parse(result.res);
-            var res = aoed.update(prior, x, y);
+            var res = aoed.update(prior, x, y, args.prune);
             console.log("AIG: " + res.AIG);
             repeatUpdate(res.mPosterior);
         });

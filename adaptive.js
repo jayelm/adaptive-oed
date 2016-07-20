@@ -60,12 +60,28 @@ var makeSkeleton = function(infraThunk) {
                 y = globalStore.y,
                 mPrior = globalStore.mPrior;
 
-            return updatePosterior({
+            // FIXME: These functions really ought to be converted to args
+            // objects
+            var prune = globalStore.prune || {},
+                pruneMin = prune.min || Infinity,
+                keepPercent = prune.keepPercent || 1.0;
+
+            var res = updatePosterior({
                 mPrior: mPrior,
                 x: x,
                 y: y,
                 infer: args.infer // infrastructure
             });
+
+            if (res.mPosterior.support().length > pruneMin) {
+                var pruned = pruneModels(res.mPosterior, keepPercent);
+                return {
+                    mPosterior: pruned,
+                    AIG: res.AIG
+                };
+            } else {
+                return res;
+            }
         }
     };
 };
@@ -146,12 +162,12 @@ var compileSkeleton = function(skeleton) {
     };
     aoed.suggestAll = suggestAll;
 
-    var update = function(mPrior, x, y) {
-        // TODO: Make functor for $suggest, $update?
+    var update = function(mPrior, x, y, prune) {
         var globalStore = {
             mPrior: mPrior,
             x: x,
-            y: y
+            y: y,
+            prune: prune
         };
         var _code = eval.call({}, updateSrc)(runner);
         var res = {};

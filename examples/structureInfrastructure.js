@@ -5,6 +5,9 @@ var infrastructure = function() {
     // Quantity asked
     var N = 100;
 
+    // Make model enumeration very quick, by fixing background probabilities to
+    // 0.5. Used for iteration
+    var trivial = true;
     // Should we Enumerate with the discrete probabilities?
     var discrete = true;
     // Should we remove dependent clause models from the model space?
@@ -302,10 +305,11 @@ var infrastructure = function() {
 
     var enumerateJPD = function(aList) {
         var jpdDist = Enumerate(function() {
-            var aPriors = sampleDumbPriors(aList);
-            // var aPriors = samplePriors(aList);
+            var aPriors = (trivial) ?
+                sampleDumbPriors(aList) :
+                samplePriors(aList);
+
             var aWeights = sampleWeights(aList);
-            // console.log(aList, aWeights, aPriors);
 
             return JPD(aList, aWeights, aPriors);
         });

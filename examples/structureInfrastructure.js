@@ -1,8 +1,8 @@
 var infrastructure = function() {
     var _ = underscore;
 
-    var nodes = ['sharp', 'rusty', 'cutting well'];
-    var thing = 'knives';
+    var nodes = ['bright', 'on', 'hot'];
+    var thing = 'lightbulbs';
     // Quantity asked
     var N = 100;
 

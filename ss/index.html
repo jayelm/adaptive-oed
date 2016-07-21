@@ -39,7 +39,7 @@
       height: 350px;
     }
 
-    svg {
+    #dag {
       display: block;
       position: absolute;
       top: 0;
@@ -47,6 +47,10 @@
       border: 3px solid #ccc;
       width: 400px;
       height: 400px;
+    }
+
+    #pred {
+      display: block;
     }
 
     td {
@@ -84,16 +88,15 @@
     <input type="text" style="display: none" name="response" id="response" value="">
     <p id="aig"></p>
   </div>
-  <svg></svg>
+  <svg id="dag"></svg>
   <div id="modelsdiv">
     <h1>Models</h1>
     <div id="models">
     </div>
   </div>
   <div id="jpdsdiv">
-    <h1>JPD</h1>
-    <div id="jpds">
-    </div>
+    <h1>Model Scores</h1>
+    <svg id="pred"></svg>
   </div>
   <div id="exptsdiv">
     <h1>Experiments</h1>

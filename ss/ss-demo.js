@@ -25,6 +25,7 @@ for (var i = 0; i < nodes.length; i++) {
 }
 
 var selExpt = -1;
+var selModel = -1;
 var started = false;
 
 function modifyNames(s) {
@@ -37,6 +38,18 @@ function modifyNames(s) {
         /\bon/g, nodes[2]
     ).replace(
         /\blightbulbs/g, thing
+    ));
+}
+
+function unmodifyNames(s) {
+    return JSON.parse(JSON.stringify(s).replace(
+        RegExp(nodes[0], "g"), "bright"
+    ).replace(
+        RegExp(nodes[1], "g"), "hot"
+    ).replace(
+        RegExp(nodes[2], "g"), "on"
+    ).replace(
+        RegExp(thing, "g"), "lightbulbs"
     ));
 }
 
@@ -55,6 +68,7 @@ $(document).ready(function() {
         selExpt = i;
         console.log(expts[selExpt].KLDist.support());
         color(i, 'expts');
+        displayPredictions();
     });
     $('#start').click(start);
     $('#update').click(update);
@@ -74,6 +88,84 @@ function restart() {
     color(0, 'models');
     updateModel(0);
     suggest();
+}
+
+function displayPredictions() {
+    // Clear existing content
+    d3.select("svg#pred").selectAll("*").remove();
+    if (selModel === -1 || selExpt === -1) {
+        return;
+    }
+    var margin = {top: 20, right: 20, bottom: 30, left: 40},
+        width = 500 - margin.left - margin.right,
+        height = 400 - margin.top - margin.bottom;
+
+    var x = d3.scale.ordinal()
+        .rangeRoundBands([0, width], 0.1);
+
+    var y = d3.scale.linear()
+        .range([height, 0]);
+
+    var xAxis = d3.svg.axis()
+        .scale(x)
+        .orient("bottom");
+
+    var yAxis = d3.svg.axis()
+        .scale(y)
+        .orient("left")
+        .ticks(10, "%");
+
+    var svg = d3.select("svg#pred")
+        .attr("width", width + margin.left + margin.right)
+        .attr("height", height + margin.top + margin.bottom)
+    .append("g")
+        .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+    var vals = [];
+    var selM = models[selModel];
+    var selX = expts[selExpt];
+    var responses = structureCache[unmodifyNames(selM.name)][unmodifyNames(selX).x.name];
+    for (var yResp in responses) {
+        if (!responses.hasOwnProperty(yResp)) {
+            continue;
+        }
+        vals.push({
+            y: Number(Number(yResp).toFixed(2)),
+            prob: Math.exp(responses[yResp])
+        });
+    }
+
+    vals = _.sortBy(vals, function(resp) { return resp.y });
+
+    console.log(vals);
+
+    // y is the x axis (possible response)
+    x.domain(vals.map(function(d) { return d.y; }));
+    y.domain([0, 1]);
+
+    svg.append("g")
+        .attr("class", "x axis")
+        .attr("transform", "translate(0," + height + ")")
+        .call(xAxis);
+
+    svg.append("g")
+        .attr("class", "y axis")
+        .call(yAxis)
+    .append("text")
+        .attr("transform", "rotate(-90)")
+        .attr("y", 6)
+        .attr("dy", ".71em")
+        .style("text-anchor", "end")
+        .text("Frequency");
+
+    svg.selectAll(".bar")
+        .data(vals)
+    .enter().append("rect")
+        .attr("class", "bar")
+        .attr("x", function(d) { return x(d.y); })
+        .attr("width", x.rangeBand())
+        .attr("y", function(d) { return y(d.prob); })
+        .attr("height", function(d) { return height - y(d.prob); });
 }
 
 function color(i, area) {
@@ -130,8 +222,8 @@ function suggest() {
 }
 
 function makeY(y) {
-    return {y: y, name: y.toString()}
-};
+    return {y: y, name: y.toString()};
+}
 
 function update() {
     $('#models').html('updating').show();
@@ -227,6 +319,7 @@ function displayAllExpts() {
 }
 
 function updateModel(modelno) {
+    selModel = modelno;
     force.stop();
     var lAndN = linksAndNodes(models[modelno]);
     var glinks = lAndN[0],
@@ -244,7 +337,7 @@ function updateModel(modelno) {
         linkDict[JSON.stringify([gs, gt])] = gl.value;
     }
 
-    // Hide all links   
+    // Hide all links
     for (var i = 0; i < realLinks.length; i++) {
         var l = realLinks[i];
         var el = realLabels[i];
@@ -286,6 +379,8 @@ function updateModel(modelno) {
         $('#jpds').hide();
         $("#jpds").html(jpdStr).show();
     }
+
+    displayPredictions();
 }
 
 function linksAndNodes(m) {
@@ -295,7 +390,7 @@ function linksAndNodes(m) {
         aPriors = m.aPriors,
         p = m.p;
 
-    var gnodes = [];    
+    var gnodes = [];
     var gnodeNums = {};
     var nodeN = 0;
     for (var key in aList) {
@@ -345,7 +440,7 @@ function initSVG() {
     var width = 400,
         height = 400;
 
-    var svg = d3.select("svg")
+    var svg = d3.select("svg#dag")
         .attr("width", width)
         .attr("height", height);
 

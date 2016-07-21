@@ -10,7 +10,8 @@ var maxGraph = {
 };
 
 // Make sure alphabetized
-var nodes = ['bright', 'hot', 'on'];
+var nodes = ['cutting well', 'heavy', 'sharp'];
+var thing = 'knives';
 
 for (var i = 0; i < nodes.length; i++) {
     var curr = nodes[i];
@@ -25,6 +26,19 @@ for (var i = 0; i < nodes.length; i++) {
 
 var selExpt = -1;
 var started = false;
+
+function modifyNames(s) {
+    // Super hacky - parse to convert to string, then replace
+    return JSON.parse(JSON.stringify(s).replace(
+        /\bbright/g, nodes[0]
+    ).replace(
+        /\bhot/g, nodes[1]
+    ).replace(
+        /\bon/g, nodes[2]
+    ).replace(
+        /\blightbulbs/g, thing
+    ));
+}
 
 $(document).ready(function() {
     $('#models').on('click', 'tr.modeltr', function(e) {
@@ -150,13 +164,14 @@ function parsePrior() {
     });
     ordered.forEach(function(e) {
         var aArray = JSON.parse(e.name);
+        var aList = modifyNames(aArray[0]);
         models.push({
-            name: e.name,
+            name: modifyNames(e.name),
             // XXX: CHANGED from booleans: since weights, priors aren't
             // encoded
-            aList: aArray[0],
+            aList: aList,
             // Approximate map
-            aWeights: _.mapObject(aArray[0], function(k, v) {
+            aWeights: _.mapObject(aList, function(k, v) {
                 return Array.apply(null, Array(v.length)).map(function() {
                     return NaN;
                 });
@@ -198,10 +213,11 @@ function displayAllExpts() {
             EIG = e.EIG,
             KLDist = e.KLDist;
 
+        // XXX: Very hacky. Just override existing bright/hot/etc
         exptStr += (
             '<tr class="expttr" exptno="' + i + '">' +
             '<td>' + x.type + '</td>' +
-            '<td>' + x.name + '</td>' +
+            '<td>' + modifyNames(x.name) + '</td>' +
             '<td>' + EIG.toFixed(3) + '</td>' +
             '</tr>'
         );

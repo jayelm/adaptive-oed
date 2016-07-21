@@ -9,6 +9,8 @@ var infrastructure = function() {
     var trivial = false;
     // Should we Enumerate with the discrete probabilities?
     var discrete = true;
+    // What is the bin width of the beta discretization?
+    var binWidth = 0.2;
     // Should we remove dependent clause models from the model space?
     var simpleSpace = true;
 
@@ -30,10 +32,10 @@ var infrastructure = function() {
     };
 
     // Uniform background probabilities and judgments
-    var probs = discretizeBeta(Beta({a: 1, b: 1}), 0.1, 100000, true);
+    var probs = discretizeBeta(Beta({a: 1, b: 1}), binWidth, 100000, true);
     var probsPrior = Beta({a: 1, b: 1});
 
-    var weights = discretizeBeta(Beta({a: 5, b: 1}), 0.1, 100000, false);
+    var weights = discretizeBeta(Beta({a: 5, b: 1}), binWidth, 100000, false);
     var weightsPrior = Beta({a: 5, b: 1});  // Skewed towards 1 (*strong*)
 
     // Since probs encompass [0, 1], make judgments the same

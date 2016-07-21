@@ -1,7 +1,22 @@
-var aList = {bright: [], hot: [], on: []};
-var jpds = enumerateJPD({bright: ['on'], hot: ['on'], on: []});
-console.log(jpds.support().length);
-err('done');
+var roundTo = function(n, mult) {
+    return mult * Math.round(n / mult);
+};
+
+var discretizeBeta = function(bd, binWidth, nSamples, keepZeros) {
+    return Infer({method: 'rejection', samples: nSamples}, function() {
+        var samp = sample(bd);
+        var rounded = roundTo(samp, binWidth);
+        if (!keepZeros) {
+            // For structural weights, it doesn't make sense to have 0
+            // probabilities
+            condition(rounded !== 0);
+        }
+        return rounded;
+    });
+};
+
+var aList = {bright: [], hot: [], on: ['bright', 'hot']};
+var jpds = enumerateJPD(aList);
 var dag = DAG(aList, 'null');
 
 var arraysEqual = function(as,bs) {
@@ -27,11 +42,33 @@ var probs = pam(jpds.support(), function(jpd) {
 });
 
 var marginals = pam(jpds.support(), function(jpd) {
-    return marginal(jpd, {bright: 0, hot: 1, on: 2}, 'on');
+    return marginal(jpd, {bright: 0, hot: 1, on: 2}, 'bright');
 });
 
-console.log(marginals);
+var conditionals = pam(jpds.support(), function(jpd) {
+    return conditional(jpd, {bright: 0, hot: 1, on: 2}, 'on', {hot: true});
+});
+console.log(conditionals);
 
 // mean(probs);
 // mean(marginals);
-// dag({type: 'marginal', a: 'on'}, {y: 0.1, name: '0.0'});
+mean(conditionals);
+
+var probs = discretizeBeta(Beta({a: 1, b: 1}), binWidth, 100000, true);
+
+pam(probs.support(), function(p) {
+    var score = dag({type: 'conditional', a: 'bright', cond: {hot: true}}, {y: p, name: p.toString()});
+    console.log(p, Math.exp(score));
+    return [p, Math.exp(score)];
+})
+
+
+var score1 = dag({type: 'marginal', a: 'bright'}, {y: 0, name: '0.2'});
+var score2 = dag({type: 'marginal', a: 'bright'}, {y: 1, name: '1'});
+
+var score3 = dag({type: 'conditional', a: 'bright', cond: {hot: true}}, {y: 1.0, name: '1.0'});
+var score4 = dag({type: 'conditional', a: 'bright', cond: {hot: true}}, {y: 0.0, name: '0.0'});
+console.log(score1, score2);
+console.log(score3, score4);
+// console.log('done');
+// console.log(Math.exp(score1), Math.exp(score2), Math.exp(score3));

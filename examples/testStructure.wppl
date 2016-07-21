@@ -1,0 +1,37 @@
+var aList = {bright: [], hot: [], on: []};
+var jpds = enumerateJPD({bright: ['on'], hot: ['on'], on: []});
+console.log(jpds.support().length);
+err('done');
+var dag = DAG(aList, 'null');
+
+var arraysEqual = function(as,bs) {
+    return as.length === bs.length &&
+        all(idF, map2(function(a, b) { return a === b; }, as, bs));
+};
+
+var mean = function(xs) {
+    return expectation(Enumerate(function() {
+        return uniformDraw(xs);
+    }));
+};
+
+// What is the average probability of rows? Get only the rows of interest
+// For each JPD return the row if it exists else null
+var rowOfInterest = [false, false, false];
+var probs = pam(jpds.support(), function(jpd) {
+    var maybeRow = reduce(function(row, maybe) {
+        return (arraysEqual(row[0], rowOfInterest)) ?
+            row[1] : maybe;
+    }, null, jpd);
+    return (maybeRow === null) ? 0 : maybeRow;
+});
+
+var marginals = pam(jpds.support(), function(jpd) {
+    return marginal(jpd, {bright: 0, hot: 1, on: 2}, 'on');
+});
+
+console.log(marginals);
+
+// mean(probs);
+// mean(marginals);
+// dag({type: 'marginal', a: 'on'}, {y: 0.1, name: '0.0'});

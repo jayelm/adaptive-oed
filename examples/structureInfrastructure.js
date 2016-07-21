@@ -18,6 +18,7 @@ var infrastructure = function() {
         return mult * Math.round(n / mult);
     };
 
+    var EPSILON = 0.000001;
     var discretizeBeta = function(bd, binWidth, nSamples, keepZeros) {
         return Infer({method: 'rejection', samples: nSamples}, function() {
             var samp = sample(bd);
@@ -27,7 +28,16 @@ var infrastructure = function() {
                 // probabilities
                 condition(rounded !== 0);
             }
-            return rounded;
+            // Modify 0 and 1 by infinitesimal values to prevent philosophical
+            // conundrums that make us question the nature of zero,
+            // impossibility, and mathematics itself
+            if (rounded === 0) {
+                return rounded + EPSILON;
+            } else if (rounded === 1) {
+                return rounded - EPSILON;
+            } else {
+                return rounded;
+            }
         });
     };
 
@@ -234,7 +244,6 @@ var infrastructure = function() {
         // deterministic)
         // Don't cache, since we're caching outside of this
         var dagModel = function(x, y) {
-            console.log('Scoring');
             if (x.type === 'structure') {
                 err('structure not implemented for this model');
             } else if (x.type === 'marginal') {
@@ -245,7 +254,6 @@ var infrastructure = function() {
                         n: N,
                         p: marginalEst
                     }).score(Math.round(y.y * N));
-                    console.log(marginalEst, score);
 
                     return (score === null) ? -Infinity : score;
                 });

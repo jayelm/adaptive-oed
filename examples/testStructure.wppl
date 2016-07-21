@@ -63,12 +63,16 @@ pam(probs.support(), function(p) {
 })
 
 
-var score1 = dag({type: 'marginal', a: 'bright'}, {y: 0, name: '0.2'});
-var score2 = dag({type: 'marginal', a: 'bright'}, {y: 1, name: '1'});
+var score1 = dag({type: 'marginal', a: 'bright'}, {y: 0.000001, name: '0.2'});
+var score2 = dag({type: 'marginal', a: 'bright'}, {y: 0.2, name: '0.2'});
+var score3 = dag({type: 'marginal', a: 'bright'}, {y: 0.4, name: '1'});
+var score4 = dag({type: 'marginal', a: 'bright'}, {y: 0.6, name: '1'});
+var score5 = dag({type: 'marginal', a: 'bright'}, {y: 0.8, name: '1'});
+var score6 = dag({type: 'marginal', a: 'bright'}, {y: 0.999999, name: '1'});
 
-var score3 = dag({type: 'conditional', a: 'bright', cond: {hot: true}}, {y: 1.0, name: '1.0'});
-var score4 = dag({type: 'conditional', a: 'bright', cond: {hot: true}}, {y: 0.0, name: '0.0'});
-console.log(score1, score2);
-console.log(score3, score4);
+// var score3 = dag({type: 'conditional', a: 'bright', cond: {hot: true}}, {y: 1.0, name: '1.0'});
+// var score4 = dag({type: 'conditional', a: 'bright', cond: {hot: true}}, {y: 0.0, name: '0.0'});
+console.log(score1, score2, score3, score4, score5, score6);
+// console.log(score3, score4);
 // console.log('done');
 // console.log(Math.exp(score1), Math.exp(score2), Math.exp(score3));

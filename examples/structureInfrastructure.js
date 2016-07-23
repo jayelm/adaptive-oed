@@ -45,8 +45,8 @@ var infrastructure = function() {
     var probs = discretizeBeta(Beta({a: 1, b: 1}), binWidth, 100000, true);
     var probsPrior = Beta({a: 1, b: 1});
 
-    var weights = discretizeBeta(Beta({a: 5, b: 1}), binWidth, 100000, false);
-    var weightsPrior = Beta({a: 5, b: 1});  // Skewed towards 1 (*strong*)
+    var weights = discretizeBeta(Beta({a: 4, b: 1}), binWidth, 100000, false);
+    var weightsPrior = Beta({a: 4, b: 1});  // Skewed towards 1 (*strong*)
 
     // Since probs encompass [0, 1], make judgments the same
     var judgments = probs;
@@ -187,7 +187,6 @@ var infrastructure = function() {
         );
     };
 
-    // XXX: To cache or not to cache?
     var marginal = function(jpd, ids, a) {
         // Due to floating point errors, this is sometimes slightly > 1
         return Math.min(1, reduce(function(row, prob) {
@@ -217,8 +216,8 @@ var infrastructure = function() {
         }, [0, 0], jpd);
         // P(A | cond) = P(A, cond) / P(cond)
         if (probs[0] === 0 && probs[1] === 0) {
-            // This was never possible, return 0
-            return 0;
+            // This shouldn't happen, since we never have zero probabilities
+            err(probs);
         } else {
             return Math.min(1, probs[0] / probs[1]);
         }
@@ -227,7 +226,6 @@ var infrastructure = function() {
     var prettyPrint = function(dag) {
         return dag.toString();
         // Pretty-print the DAG according to the nodes
-        // TODO: Or add jpd property to named model functions?
     };
 
     // a DAG functor, taking in an adjacency list (structure), a set of weights
@@ -307,7 +305,13 @@ var infrastructure = function() {
     // ONLY return 0.5 and see if it works
     var sampleDumbPriors = function(aList) {
         return pamObject(aList, function(child, parents) {
-            return 0.5;
+            return 0.2;
+        });
+    };
+
+    var sampleDumbWeights = function(aList) {
+        return pamObject(aList, function(child, parents) {
+            return repeat(parents.length, function() { return 0.7; });
         });
     };
 
@@ -317,7 +321,9 @@ var infrastructure = function() {
                 sampleDumbPriors(aList) :
                 samplePriors(aList);
 
-            var aWeights = sampleWeights(aList);
+            var aWeights = (trivial) ?
+                sampleDumbWeights(aList) :
+                sampleWeights(aList);
 
             return JPD(aList, aWeights, aPriors);
         });

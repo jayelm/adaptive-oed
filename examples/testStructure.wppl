@@ -15,9 +15,12 @@ var discretizeBeta = function(bd, binWidth, nSamples, keepZeros) {
     });
 };
 
-var aList = {bright: [], hot: [], on: ['bright', 'hot']};
-var jpds = enumerateJPD(aList);
-var dag = DAG(aList, 'null');
+var dir1 = {bright: ['hot'], hot: [], on: []};
+var dir2 = {bright: [], hot: ['bright'], on: []};
+var jpds1 = enumerateJPD(dir1);
+var jpds2 = enumerateJPD(dir2);
+var dag1 = DAG(dir1, 'null');
+var dag2 = DAG(dir2, 'null');
 
 var arraysEqual = function(as,bs) {
     return as.length === bs.length &&
@@ -32,8 +35,8 @@ var mean = function(xs) {
 
 // What is the average probability of rows? Get only the rows of interest
 // For each JPD return the row if it exists else null
-var rowOfInterest = [false, false, false];
-var probs = pam(jpds.support(), function(jpd) {
+var rowOfInterest = [true, true, false];
+var probs = pam(jpds1.support(), function(jpd) {
     var maybeRow = reduce(function(row, maybe) {
         return (arraysEqual(row[0], rowOfInterest)) ?
             row[1] : maybe;
@@ -41,38 +44,79 @@ var probs = pam(jpds.support(), function(jpd) {
     return (maybeRow === null) ? 0 : maybeRow;
 });
 
-var marginals = pam(jpds.support(), function(jpd) {
-    return marginal(jpd, {bright: 0, hot: 1, on: 2}, 'bright');
+var probs2 = pam(jpds2.support(), function(jpd) {
+    var maybeRow = reduce(function(row, maybe) {
+        return (arraysEqual(row[0], rowOfInterest)) ?
+            row[1] : maybe;
+    }, null, jpd);
+    return (maybeRow === null) ? 0 : maybeRow;
 });
 
-var conditionals = pam(jpds.support(), function(jpd) {
-    return conditional(jpd, {bright: 0, hot: 1, on: 2}, 'on', {hot: true});
-});
-console.log(conditionals);
+var jpdToString = function(jpd) {
+    return reduce(function(row, acc) {
+        var thisRowStr = row[0].join(',') + ': ' + row[1].toFixed(4);
+        return acc + '\n' + thisRowStr;
+    }, '', jpd) + '\n';
+};
 
-// mean(probs);
+var c1 = pam(jpds1.support(), function(jpd) {
+    console.log(
+        jpdToString(jpd),
+        conditional(jpd, {bright: 0, hot: 1, on: 2}, 'bright', {hot: true})
+    );
+});
+
+var c2 = pam(jpds2.support(), function(jpd) {
+    console.log(
+        jpdToString(jpd),
+        conditional(jpd, {bright: 0, hot: 1, on: 2}, 'bright', {hot: true})
+    );
+});
+
+// null
+
+// var conditionals = pam(jpds.support(), function(jpd) {
+    // return conditional(jpd, {bright: 0, hot: 1, on: 2}, 'on', {hot: true});
+// });
+// console.log(conditionals);
+
+// console.log(mean(probs));
+// console.log(mean(probs2));
 // mean(marginals);
-mean(conditionals);
+// mean(conditionals);
 
-var probs = discretizeBeta(Beta({a: 1, b: 1}), binWidth, 100000, true);
+// var probs = discretizeBeta(Beta({a: 1, b: 1}), binWidth, 100000, true);
 
-pam(probs.support(), function(p) {
-    var score = dag({type: 'conditional', a: 'bright', cond: {hot: true}}, {y: p, name: p.toString()});
-    console.log(p, Math.exp(score));
-    return [p, Math.exp(score)];
-})
+// pam(probs.support(), function(p) {
+    // var score = dag({type: 'conditional', a: 'bright', cond: {hot: true}}, {y: p, name: p.toString()});
+    // console.log(p, Math.exp(score));
+    // return [p, Math.exp(score)];
+// })
 
 
-var score1 = dag({type: 'marginal', a: 'bright'}, {y: 0.000001, name: '0.2'});
-var score2 = dag({type: 'marginal', a: 'bright'}, {y: 0.2, name: '0.2'});
-var score3 = dag({type: 'marginal', a: 'bright'}, {y: 0.4, name: '1'});
-var score4 = dag({type: 'marginal', a: 'bright'}, {y: 0.6, name: '1'});
-var score5 = dag({type: 'marginal', a: 'bright'}, {y: 0.8, name: '1'});
-var score6 = dag({type: 'marginal', a: 'bright'}, {y: 0.999999, name: '1'});
+// var score1 = dag1({type: 'conditional', a: 'bright', cond: {hot: true}}, {y: 0.000001, name: '0.2'});
+// var score2 = dag1({type: 'conditional', a: 'bright', cond: {hot: true}}, {y: 0.2, name: '0.2'});
+// var score3 = dag1({type: 'conditional', a: 'bright', cond: {hot: true}}, {y: 0.4, name: '1'});
+// var score4 = dag1({type: 'conditional', a: 'bright', cond: {hot: true}}, {y: 0.6, name: '1'});
+// var score5 = dag1({type: 'conditional', a: 'bright', cond: {hot: true}}, {y: 0.8, name: '1'});
+// var score6 = dag1({type: 'conditional', a: 'bright', cond: {hot: true}}, {y: 0.999999, name: '1'});
 
-// var score3 = dag({type: 'conditional', a: 'bright', cond: {hot: true}}, {y: 1.0, name: '1.0'});
-// var score4 = dag({type: 'conditional', a: 'bright', cond: {hot: true}}, {y: 0.0, name: '0.0'});
-console.log(score1, score2, score3, score4, score5, score6);
+// var score7 = dag1({type: 'conditional', a: 'hot', cond: {bright: true}}, {y: 0.000001, name: '0.2'});
+// var score8 = dag1({type: 'conditional', a: 'hot', cond: {bright: true}}, {y: 0.2, name: '0.2'});
+// var score9 = dag1({type: 'conditional', a: 'hot', cond: {bright: true}}, {y: 0.4, name: '1'});
+// var score10 = dag1({type: 'conditional', a: 'hot', cond: {bright: true}}, {y: 0.6, name: '1'});
+// var score11 = dag1({type: 'conditional', a: 'hot', cond: {bright: true}}, {y: 0.8, name: '1'});
+// var score12 = dag1({type: 'conditional', a: 'hot', cond: {bright: true}}, {y: 0.999999, name: '1'});
+
+// console.log(score1, score2, score3, score4, score5, score6);
+
+// var score1 = dag2({type: 'conditional', a: 'bright', cond: {hot: true}}, {y: 0.000001, name: '0.2'});
+// var score2 = dag2({type: 'conditional', a: 'bright', cond: {hot: true}}, {y: 0.2, name: '0.2'});
+// var score3 = dag2({type: 'conditional', a: 'bright', cond: {hot: true}}, {y: 0.4, name: '1'});
+// var score4 = dag2({type: 'conditional', a: 'bright', cond: {hot: true}}, {y: 0.6, name: '1'});
+// var score5 = dag2({type: 'conditional', a: 'bright', cond: {hot: true}}, {y: 0.8, name: '1'});
+// var score6 = dag2({type: 'conditional', a: 'bright', cond: {hot: true}}, {y: 0.999999, name: '1'});
+
 // console.log(score3, score4);
 // console.log('done');
 // console.log(Math.exp(score1), Math.exp(score2), Math.exp(score3));

@@ -9,6 +9,22 @@ var maxGraph = {
     p: 1
 };
 
+var EPSILON = 0.000001;
+function correctInput(y) {
+    if (y === 0.6) {
+        y = 0.6000000000000001;
+    } else if (y === 0.3) {
+        y = 0.30000000000000004;
+    } else if (y === 0.7) {
+        y = 0.7000000000000001;
+    } else if (y === 0) {
+        y = EPSILON;
+    } else if (y === 1) {
+        y = 1 - EPSILON;
+    }
+    return y;
+}
+
 // Make sure alphabetized
 var nodes = ['cutting well', 'heavy', 'sharp'];
 var thing = 'knives';
@@ -222,6 +238,7 @@ function suggest() {
 }
 
 function makeY(y) {
+    y = correctInput(y);
     return {y: y, name: y.toString()};
 }
 

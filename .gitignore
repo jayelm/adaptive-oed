@@ -79,3 +79,5 @@ vignettes/*.pdf
 # Not needed, build yourself
 webppl.min.js
 cache/*.json
+
+log*.txt

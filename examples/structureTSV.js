@@ -20,11 +20,26 @@ var sampleDAG = function() {
     var aWeights = sampleWeights(aList);
     var aPriors = samplePriors(aList);
 
+    var aWeightsLL = reduce(function(child, acc) {
+        var parents = aWeights[child];
+        var parentsLL = reduce(function(w, acc) {
+            return acc * Math.exp(weights.score(w));
+        }, 1, parents);
+        return acc * parentsLL;
+    }, 1, Object.keys(aWeights));
+
+    var aPriorsLL = reduce(function(child, acc) {
+        var b = aPriors[child];
+        return acc * Math.exp(probs.score(b));
+    }, 1, Object.keys(aPriors));
+
     return {
         jpd: JPD(aList, aWeights, aPriors),
         aList: aList,
         aWeights: aWeights,
-        aPriors: aPriors
+        aPriors: aPriors,
+        // This is LL disregarding probability of aList (since that's uniform)
+        ll: Math.log(aWeightsLL * aPriorsLL)
     };
 };
 
@@ -75,15 +90,15 @@ var conditional = function(jpd, ids, a, cond) {
 var prior = aoed.initialPrior;
 
 var cols = [
-    'pTrue', 'mNo', 'mName', 'aWeights', 'aPriors', 'trial', 'pMax', 'mMax', 'x','EIG','y'
+    'pTrue', 'mNo', 'mName', 'aWeights', 'aPriors', 'trial', 'pMax', 'mMax', 'x','EIG','y', 'll'
 ];
 
 var logRow = function(args) {
     if (args === null) {
         // Then log the header
-        console.log(cols.join());
+        console.log(cols.join('\t'));
     } else {
-        console.log(_.map(cols, function(key) { return args[key]; }).join());
+        console.log(_.map(cols, function(key) { return args[key]; }).join('\t'));
     }
 };
 
@@ -94,7 +109,8 @@ for (var mNo = 0; mNo < 10; mNo++) {
         jpd = model.jpd,
         aList = model.aList,
         aWeights = model.aWeights,
-        aPriors = model.aPriors;
+        aPriors = model.aPriors,
+        ll = model.ll;
 
     var mName = JSON.stringify([aList]);
 
@@ -105,7 +121,7 @@ for (var mNo = 0; mNo < 10; mNo++) {
 
     prior = aoed.initialPrior;
 
-    for (var i = 0; i < 10; i++) {
+    for (var i = 0; i < 30; i++) {
         // Get best question
         var expts = aoed.suggestAll(prior, args);
         // Loop through and get max experiment
@@ -166,13 +182,14 @@ for (var mNo = 0; mNo < 10; mNo++) {
             mName: mName,
             aWeights: JSON.stringify(aWeights),
             aPriors: JSON.stringify(aPriors),
-            trial: i,
+            trial: i + 1,
             pTrue: pTrue,
             pMax: pMax,
             mMax: mMax,
             x: x.name,
             EIG: EIG,
-            y: yObj.name
+            y: yObj.name,
+            ll: ll
         });
         // Log this information before rerunning
         prior = aoed.update(prior, x, yObj, args).mPosterior;

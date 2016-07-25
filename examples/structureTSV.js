@@ -90,7 +90,7 @@ var conditional = function(jpd, ids, a, cond) {
 var prior = aoed.initialPrior;
 
 var cols = [
-    'pTrue', 'mNo', 'mName', 'aWeights', 'aPriors', 'trial', 'pMax', 'mMax', 'x','EIG','y', 'll'
+    'skip', 'pTrue', 'mNo', 'mName', 'aWeights', 'aPriors', 'trial', 'pMax', 'mMax', 'x','EIG','y', 'll'
 ];
 
 var logRow = function(args) {
@@ -104,94 +104,114 @@ var logRow = function(args) {
 
 logRow(null);
 
-for (var mNo = 0; mNo < 10; mNo++) {
-    var model = aoed.run(sampleDAGsrc),
-        jpd = model.jpd,
-        aList = model.aList,
-        aWeights = model.aWeights,
-        aPriors = model.aPriors,
-        ll = model.ll;
+for (skipi = 0; skipi < 2; skipi++) {
+    var skip = (skipi === 0);
 
-    var mName = JSON.stringify([aList]);
+    for (var mNo = 0; mNo < 50; mNo++) {
+        var model = aoed.run(sampleDAGsrc),
+            jpd = model.jpd,
+            aList = model.aList,
+            aWeights = model.aWeights,
+            aPriors = model.aPriors,
+            ll = model.ll;
 
-    var ids = _.object(
-        Object.keys(aList),
-        _.range(Object.keys(aList).length)
-    );
+        var mName = JSON.stringify([aList]);
 
-    prior = aoed.initialPrior;
+        var ids = _.object(
+            Object.keys(aList),
+            _.range(Object.keys(aList).length)
+        );
 
-    for (var i = 0; i < 30; i++) {
-        // Get best question
-        var expts = aoed.suggestAll(prior, args);
-        // Loop through and get max experiment
-        var bestExpt = _.reduce(expts, function(bestExpt, expt) {
-            return (expt.EIG > bestExpt.EIG) ? expt : bestExpt;
-        }, {x: null, EIG: -Infinity, KLDist: null});
+        prior = aoed.initialPrior;
+        var oldExpts = new Set();
 
-        var x = bestExpt.x,
-            EIG = bestExpt.EIG,
-            KLDist = bestExpt.KLDist;
+        for (var i = 0; i < 30; i++) {
+            // Get best question
+            var expts = aoed.suggestAll(prior, args);
+            // Loop through and get max experiment
+            var bestExpt = _.reduce(expts, function(bestExpt, expt) {
+                if (skip) {
+                    if (oldExpts.has(expt.x.name)) {
+                        // Then don't return this new expt
+                        return bestExpt;
+                    }
+                }
+                return (expt.EIG > bestExpt.EIG) ? expt : bestExpt;
+            }, {x: null, EIG: -Infinity, KLDist: null});
 
-        var y;
-        if (x.type === 'conditional') {
-            y = conditional(jpd, ids, x.a, x.cond);
-        } else if (x.type === 'marginal') {
-            y = marginal(jpd, ids, x.a);
-        } else {
-            throw 'Unknown experiment type ' + x.type;
-        }
-        // round to binwidth
-        y = roundTo(y, binWidth);
-        // small corrections for discrete betas
-        // TODO: Just fix these in the discretization!
-        if (y === 0.6) {
-            y = 0.6000000000000001;
-        } else if (y === 0.3) {
-            y = 0.30000000000000004;
-        } else if (y === 0.7) {
-            y = 0.7000000000000001;
-        } else if (y === 0) {
-            y = EPSILON;
-        } else if (y === 1) {
-            y = 1 - EPSILON;
-        }
-        var yObj = {
-            y: y,
-            name: y.toString()
-        };
-        // Get belief in true model
-        var pTrue = -1;
-        var pMax = -1;
-        var mMax = '';
-        var models = prior.support();
-        for (var mi = 0; mi < models.length; mi++) {
-            var model = models[mi];
-            var score = Math.exp(prior.score(model));
-            if (score > pMax) {
-                pMax = score;
-                mMax = model.name;
-            }
-            if (model.name === mName) {
-                pTrue = score;
+            if (bestExpt.x === null) {
+                // Then we've exhausted all experiments
                 break;
             }
+
+
+            var x = bestExpt.x,
+                EIG = bestExpt.EIG,
+                KLDist = bestExpt.KLDist;
+
+            oldExpts.add(x.name);
+
+            var y;
+            if (x.type === 'conditional') {
+                y = conditional(jpd, ids, x.a, x.cond);
+            } else if (x.type === 'marginal') {
+                y = marginal(jpd, ids, x.a);
+            } else {
+                throw 'Unknown experiment type ' + x.type;
+            }
+            // round to binwidth
+            y = roundTo(y, binWidth);
+            // small corrections for discrete betas
+            // TODO: Just fix these in the discretization!
+            if (y === 0.6) {
+                y = 0.6000000000000001;
+            } else if (y === 0.3) {
+                y = 0.30000000000000004;
+            } else if (y === 0.7) {
+                y = 0.7000000000000001;
+            } else if (y === 0) {
+                y = EPSILON;
+            } else if (y === 1) {
+                y = 1 - EPSILON;
+            }
+            var yObj = {
+                y: y,
+                name: y.toString()
+            };
+            // Get belief in true model
+            var pTrue = -1;
+            var pMax = -1;
+            var mMax = '';
+            var models = prior.support();
+            for (var mi = 0; mi < models.length; mi++) {
+                var model = models[mi];
+                var score = Math.exp(prior.score(model));
+                if (score > pMax) {
+                    pMax = score;
+                    mMax = model.name;
+                }
+                if (model.name === mName) {
+                    pTrue = score;
+                    break;
+                }
+            }
+            logRow({
+                skip: skip * 1,
+                mNo: mNo + 1,
+                mName: mName,
+                aWeights: JSON.stringify(aWeights),
+                aPriors: JSON.stringify(aPriors),
+                trial: i + 1,
+                pTrue: pTrue,
+                pMax: pMax,
+                mMax: mMax,
+                x: x.name,
+                EIG: EIG,
+                y: yObj.name,
+                ll: ll
+            });
+            // Log this information before rerunning
+            prior = aoed.update(prior, x, yObj, args).mPosterior;
         }
-        logRow({
-            mNo: mNo + 1,
-            mName: mName,
-            aWeights: JSON.stringify(aWeights),
-            aPriors: JSON.stringify(aPriors),
-            trial: i + 1,
-            pTrue: pTrue,
-            pMax: pMax,
-            mMax: mMax,
-            x: x.name,
-            EIG: EIG,
-            y: yObj.name,
-            ll: ll
-        });
-        // Log this information before rerunning
-        prior = aoed.update(prior, x, yObj, args).mPosterior;
     }
 }

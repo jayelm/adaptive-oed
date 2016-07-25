@@ -13,7 +13,7 @@ var infrastructure = function() {
     // Should we Enumerate with the discrete probabilities?
     var discrete = true;
     // What is the bin width of the beta discretization?
-    var binWidth = 0.2;
+    var binWidth = 0.1;
     // Should we remove dependent clause models from the model space?
     var simpleSpace = true;
 

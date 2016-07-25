@@ -3,7 +3,7 @@ var acli = require('../acli');
 var infrastructure = require('./structureInfrastructure.js');
 var fs = require('fs');
 var _ = require('underscore');
-var cache = require('../cache/structure.js');
+var cache = require('../cache/structureTenths.js');
 
 var args = {
     usePredictiveY: true,
@@ -131,6 +131,10 @@ for (var mNo = 0; mNo < 10; mNo++) {
         // TODO: Just fix these in the discretization!
         if (y === 0.6) {
             y = 0.6000000000000001;
+        } else if (y === 0.3) {
+            y = 0.30000000000000004;
+        } else if (y === 0.7) {
+            y = 0.7000000000000001;
         } else if (y === 0) {
             y = EPSILON;
         } else if (y === 1) {

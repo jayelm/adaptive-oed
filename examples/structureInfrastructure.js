@@ -7,6 +7,9 @@ var infrastructure = function() {
     // Make model enumeration very quick, by fixing background probabilities to
     // 0.5. Used for iteration
     var trivial = false;
+    // If this is true, then rely entirely on the passed-in cache; attempting
+    // to score models will result in an error
+    var cacheEverything = true;
     // Should we Enumerate with the discrete probabilities?
     var discrete = true;
     // What is the bin width of the beta discretization?
@@ -411,7 +414,17 @@ var infrastructure = function() {
         // No easy: assume flips @ some bernoulli
         var structAdjList = uniformDraw(enumerateStructures(nodes));
         // var structAdjList = enumerateStructures(nodes)[3];
-        return DAG(structAdjList);
+        if (cacheEverything) {
+            return Model(
+                JSON.stringify([structAdjList]),
+                function(x, y) {
+                    console.log(x, y);
+                    err('x, y not in cache');
+                }
+            );
+        } else {
+            return DAG(structAdjList);
+        }
     };
 
     // Sample an experiment

@@ -1,3 +1,25 @@
+$(document).ready(function() {
+    $('#models').on('click', 'tr.modeltr', function(e) {
+        var i = parseInt(
+            e.currentTarget.attributes.modelno.nodeValue
+        );
+        color(i, 'models');
+        updateModel(i);
+    });
+    $('#expts').on('click', 'tr.expttr', function(e) {
+        var i = parseInt(
+            e.currentTarget.attributes.exptno.nodeValue
+        );
+        selExpt = i;
+        console.log(expts[selExpt].KLDist.support());
+        color(i, 'expts');
+        displayPredictions();
+    });
+    $('#start').click(start);
+    $('#update').click(update);
+    $('#restart').click(restart);
+});
+
 // Will this come in handy?
 var mode = 'structure';
 
@@ -68,28 +90,6 @@ function unmodifyNames(s) {
         RegExp(thing, "g"), "lightbulbs"
     ));
 }
-
-$(document).ready(function() {
-    $('#models').on('click', 'tr.modeltr', function(e) {
-        var i = parseInt(
-            e.currentTarget.attributes.modelno.nodeValue
-        );
-        color(i, 'models');
-        updateModel(i);
-    });
-    $('#expts').on('click', 'tr.expttr', function(e) {
-        var i = parseInt(
-            e.currentTarget.attributes.exptno.nodeValue
-        );
-        selExpt = i;
-        console.log(expts[selExpt].KLDist.support());
-        color(i, 'expts');
-        displayPredictions();
-    });
-    $('#start').click(start);
-    $('#update').click(update);
-    $('#restart').click(restart);
-});
 
 function restart() {
     prior = initialPrior;

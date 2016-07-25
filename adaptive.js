@@ -199,6 +199,42 @@ var compileSkeleton = function(skeleton) {
     };
     aoed.cache = cache;
 
+    // Functions for compiling and running arbitrary code
+    var compile = function(wpplStr) {
+        // Add infrastructure and utils
+        return webppl.compile(commonStr + wpplStr);
+    };
+    aoed.compile = compile;
+
+    // Helper for getting the body of a thunk
+    var compileThunk = function(thunk) {
+        // Add infrastructure and utils
+        var wpplStr = getThunkBody(thunk);
+        return compile(wpplStr);
+    };
+    aoed.compileThunk = compileThunk;
+
+    var run = function(wpplSrc, globalStore) {
+        var _code = eval.call({}, wpplSrc)(runner);
+        var res = {};
+        _code(globalStore, makeStoreFunc(res), '');
+        return res.returnValue;
+    };
+    aoed.run = run;
+
+    // For one-off convenience
+    var compileAndRun = function(wpplStr, globalStore) {
+        var wpplSrc = compile(wpplStr);
+        return run(wpplSrc, globalStore);
+    };
+    aoed.compileAndRun = compileAndRun;
+
+    // For getting variables defined in the thunk
+    var retrieve = function(name) {
+        return compileAndRun('return ' + name + ';', {});
+    };
+    aoed.retrieve = retrieve;
+
     // Actually call the initialize source code to get the first model prior
     var initialPrior = eval.call({}, initialSrc)(runner);
     initialPrior({}, function(store, returnValue) {

@@ -5,7 +5,7 @@ var makeInfrastructure = require('./coinInfrastructure.js');
 var infrastructure = makeInfrastructure({nullGroup: true});
 
 var args = {
-    usePredictiveY: false,
+    usePredictiveY: true,
     returnKL: true
 };
 

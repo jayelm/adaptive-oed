@@ -1,11 +1,11 @@
-#!/bin/sh
+#!/bin/bash
 
 # Requires coreUtils
-pushd ~/Git/oed/adaptive-oed/examples/
+pushd ~/adaptive-oed/examples/
 temp_file=$(mktemp ./test.XXXXXXX)
 trap "rm -f $temp_file" 0 2 3 15
 echo ${temp_file}
-cat structureInfrastructure.js | tail -n +2 | ghead -n -3  > ${temp_file}
+cat structureInfrastructure.js | tail -n +2 | head -n -3  > ${temp_file}
 cat testStructure.wppl >> ${temp_file}
 
 webppl ${temp_file} --require webppl-oed

@@ -331,6 +331,28 @@ var infrastructure = function() {
         return jpdDist;
     };
 
+    // More information returned from JPD for debugging
+    var enumerateJPD2 = function(aList) {
+        var jpdDist = Enumerate(function() {
+            var aPriors = (trivial) ?
+                sampleDumbPriors(aList) :
+                samplePriors(aList);
+
+            var aWeights = (trivial) ?
+                sampleDumbWeights(aList) :
+                sampleWeights(aList);
+
+            return {
+                jpd: JPD(aList, aWeights, aPriors),
+                aList: aList,
+                aWeights: aWeights,
+                aPriors: aPriors
+            };
+        });
+
+        return jpdDist;
+    };
+
     var sampleStructures = function(nodes) {
         // Assume this is the topological ordering.
         var orderedNodes = shuffle(nodes, []);

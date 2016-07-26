@@ -1,5 +1,10 @@
 require('./webppl.min.js');
 
+var _isFunction = function(obj) {
+    return (obj && obj.constructor &&
+            obj.call && obj.apply);
+};
+
 var makeSkeleton = function(infraThunk) {
     return {
         common: infraThunk,
@@ -106,7 +111,9 @@ var getThunkBody = function(thunk) {
 
 var compileSkeleton = function(skeleton) {
     // Common to all functions
-    var commonInfraStr = getThunkBody(skeleton.common);
+    var commonInfraStr = (_isFunction(skeleton.common)) ?
+        getThunkBody(skeleton.common) :
+        skeleton.common;
     var commonUtilsStr = getThunkBody(skeleton.commonUtils);
     var commonStr = commonInfraStr + commonUtilsStr;
 
@@ -252,14 +259,11 @@ var AOED = function(infraThunk) {
     // XXX: There might be workarounds, e.g. have a separate args thunk that
     // returns an object, etc.
 
-    // Fast isFunction check by underscore.js
-    if (!(infraThunk && infraThunk.constructor &&
-        infraThunk.call && infraThunk.apply)) {
-        throw "argument is not a function";
-    }
+    var commonStr = (_isFunction(infraThunk)) ?
+        infraThunk.toString() :
+        infraThunk; // Otherwise assume already string
 
     // Check if the string is good to go
-    var commonStr = infraThunk.toString();
     if (commonStr.indexOf("args") === -1) {
         throw "No `args` string detected in thunk, " +
               "or reflection isn't working. Check that your thunk's toString returns " +
@@ -271,5 +275,6 @@ var AOED = function(infraThunk) {
 };
 
 module.exports = {
-    AOED: AOED
+    AOED: AOED,
+    getThunkBody: getThunkBody
 };

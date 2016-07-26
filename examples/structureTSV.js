@@ -192,7 +192,6 @@ for (skipi = 0; skipi < 2; skipi++) {
                 }
                 if (model.name === mName) {
                     pTrue = score;
-                    break;
                 }
             }
             logRow({

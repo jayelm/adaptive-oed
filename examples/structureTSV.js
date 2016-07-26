@@ -107,7 +107,7 @@ logRow(null);
 for (skipi = 0; skipi < 2; skipi++) {
     var skip = (skipi === 0);
 
-    for (var mNo = 0; mNo < 50; mNo++) {
+    for (var mNo = 0; mNo < 25; mNo++) {
         var model = aoed.run(sampleDAGsrc),
             jpd = model.jpd,
             aList = model.aList,

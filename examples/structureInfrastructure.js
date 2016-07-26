@@ -411,7 +411,7 @@ var infrastructure = function() {
     // Sample a DAG
     var mSample = function() {
         // TODO: Sparsity! Factor by the number of connections?
-        // No easy: assume flips @ some bernoulli
+        // Still need sparsity prior here...
         var structAdjList = uniformDraw(enumerateStructures(nodes));
         // var structAdjList = enumerateStructures(nodes)[3];
         if (cacheEverything) {

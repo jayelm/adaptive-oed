@@ -138,6 +138,7 @@ csv.parse(data, {delimiter: '\t', quote: '', escape: ''}, function(err, data) {
             logRow({
                 mScore: score,
                 subj: lastObj.subj,
+                trueJPD: JSON.stringify(lastObj.jpd),
                 m: lastObj.mMax,
                 aWeights: JSON.stringify(aWeights),
                 aPriors: JSON.stringify(aPriors),

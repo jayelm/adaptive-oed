@@ -15,14 +15,21 @@ var header_meanings = {
     'Q_nXnYnZ': [false, false, false],
 };
 
-var sum = function(arr) {
-    return _.reduce(arr, function(memo, num){ return memo + num; }, 0);
+var sumNoZeros = function(arr) {
+    // XXX: To avoid 0 probability errors: add infinitesimals to values if
+    // they're zero
+    return _.reduce(arr, function(memo, num) {
+        // This is EPSILON * 100
+        return memo + ((num === 0) ? 0.0001 : num);
+    }, 0);
 };
 
 var normalize = function(vals) {
-    var total = sum(vals);
+    // XXX: To avoid 0 probability errors: add infinitesimals to values if
+    // they're zero
+    var total = sumNoZeros(vals);
     return _.map(vals, function(v) {
-        return v / total;
+        return ((v === 0) ? 0.0001 : v) / total;
     });
 };
 
@@ -59,4 +66,5 @@ csv.parse(data, {delimiter: ',', quote: '', escape: ''}, function(err, data) {
     }
 
     fs.writeFileSync('./data/priors-8q.json', JSON.stringify(jpds));
+    console.log('saved to ./data/priors-8q.json');
 });

@@ -49,7 +49,7 @@ var conditional = function(jpd, ids, a, cond) {
 
 var nodes = ['bright', 'on', 'hot'];
 
-var data = fs.readFileSync('./data/simStructure-temp.tsv', 'utf8');
+var data = fs.readFileSync('./data/simStructure.tsv', 'utf8');
 
 var cols = [
     'mScore', 'subj', 'm', 'aWeights', 'aPriors', 'jpd', 'trial',

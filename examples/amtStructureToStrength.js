@@ -53,7 +53,7 @@ var data = fs.readFileSync('./data/raw/within-subjects-trialdata.tsv', 'utf8');
 
 var cols = [
     'mScore', 'amt_id', 'm', 'aWeights', 'aPriors', 'jpd', 'amt_trial',
-    'xText', 'xType', 'xA', 'xCond', 'EIG', 'y', 'mY', 'AIG', 'alternate',
+    'xText', 'xType', 'xA', 'xCond', 'EIG', 'y', 'mY', 'alternate',
     'repeat', 'domain'
 ];
 
@@ -92,6 +92,11 @@ csv.parse(data, {delimiter: '\t', quote: '', escape: ''}, function(err, data) {
                 return true;
             }
         });
+
+        if (nextM == null) {
+            // Then this is the last one
+            nextM = currSlice.length;
+        }
 
         var lastObj = _.object(header,
             _.map(currSlice[nextM - 1], JSON.parse));
@@ -153,15 +158,16 @@ csv.parse(data, {delimiter: '\t', quote: '', escape: ''}, function(err, data) {
                 EIG: currObj.xEIG,
                 y: y,
                 mY: mY,
-                AIG: currObj.AIG,
                 alternate: currObj.alternate,
                 repeat: currObj.repeat,
                 domain: lastObj.domain
             });
 
-            prior = aoed.update(prior, x, yObj, args).mPosterior;
+            var res = aoed.update(prior, x, yObj, args);
+            prior = res.mPosterior;
+
             currIndex++;
-            currObj = _.object(header, data[currIndex]);
+            currObj = _.object(header, _.map(data[currIndex], JSON.parse));
         }
     }
 });

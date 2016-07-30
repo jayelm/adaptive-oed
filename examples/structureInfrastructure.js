@@ -460,8 +460,8 @@ var infrastructure = function() {
             var a = uniformDraw(nodes); // jshint ignore:line
             var rest = _.without(nodes, a);
             // How many other variables to condition on
-            var condAmt = randomInteger(rest.length) + 1;
-            // var condAmt = 1; // If we just want to condition on 1 thing
+            // var condAmt = randomInteger(rest.length) + 1;
+            var condAmt = 1; // If we just want to condition on 1 thing
             // Assign random varible to each rest
             var condNodes = sampleN(rest, condAmt);
             var cond = _.object(

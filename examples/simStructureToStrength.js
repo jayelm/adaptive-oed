@@ -52,7 +52,7 @@ var nodes = ['bright', 'on', 'hot'];
 var data = fs.readFileSync('./data/simStructure.tsv', 'utf8');
 
 var cols = [
-    'mScore', 'subj', 'm', 'aWeights', 'aPriors', 'jpd', 'trial',
+    'mScore', 'subj', 'trueJPD', 'm', 'aWeights', 'aPriors', 'jpd', 'trial',
     'xText', 'xType', 'xA', 'xCond', 'EIG','y', 'mY', 'll',
     'domain'
 ];
@@ -78,14 +78,14 @@ csv.parse(data, {delimiter: '\t', quote: '', escape: ''}, function(err, data) {
     while (currIndex < data.length) {
         // Get LAST experiment:
         var currObj = _.object(header, data[currIndex]);
-        var currSubj = currObj.subj;
+        var currDomain = currObj.domain;
 
         var currSlice = data.slice(currIndex);
 
         var nextM = _.find(_.range(currSlice.length), function(i) {
-            // mNo
+            // Check domain
             var row = currSlice[i];
-            if (row[0] !== currSubj) {
+            if (row[1] !== currDomain) {
                 return true;
             }
         });
@@ -99,11 +99,17 @@ csv.parse(data, {delimiter: '\t', quote: '', escape: ''}, function(err, data) {
                          JSON.stringify(JSON.parse(lastObj.mMax)[0]))
         );
 
+        console.log('aoeding');
+        if (global.gc) {
+            console.log('gcing');
+            global.gc();
+        };
         var aoed = adaptive.AOED(infraStr);
+        console.log('aoeded');
         var prior = aoed.initialPrior;
         var trial = 1;
 
-        while (currObj.subj === currSubj) {
+        while (currObj.domain === currDomain) {
             var map = prior.MAP();
 
             var mapArr = JSON.parse(map.val.name),

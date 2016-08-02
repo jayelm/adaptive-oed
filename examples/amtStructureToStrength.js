@@ -49,7 +49,12 @@ var conditional = function(jpd, ids, a, cond) {
 
 var nodes = ['bright', 'on', 'hot'];
 
-var data = fs.readFileSync('./data/raw/within-subjects-trialdata.tsv', 'utf8');
+// Get name of file
+console.log('processargv');
+console.log(process.argv[2]);
+var data = fs.readFileSync(process.argv[2], 'utf8');
+console.log(data);
+console.log('done');
 
 var cols = [
     'mScore', 'amt_id', 'm', 'aWeights', 'aPriors', 'jpd', 'amt_trial',
@@ -76,7 +81,6 @@ csv.parse(data, {delimiter: '\t', quote: '', escape: ''}, function(err, data) {
     var header = data[0];
     var currIndex = 1;
     while (currIndex < data.length) {
-        // Different: need to do a json parse from python script output
         var currObj = _.object(
             header,
             _.map(data[currIndex], JSON.parse)
@@ -93,7 +97,7 @@ csv.parse(data, {delimiter: '\t', quote: '', escape: ''}, function(err, data) {
             }
         });
 
-        if (nextM == null) {
+        if (nextM === undefined) {
             // Then this is the last one
             nextM = currSlice.length;
         }

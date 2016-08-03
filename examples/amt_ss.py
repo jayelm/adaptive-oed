@@ -38,6 +38,10 @@ if __name__ == '__main__':
         'tsvfile',
         help="trialdata tsv file (generated from csli/experiments directory)"
     )
+    parser.add_argument(
+        'outfile',
+        help="File to write to"
+    )
 
     args = parser.parse_args()
 
@@ -56,7 +60,7 @@ if __name__ == '__main__':
 
     out_lines = []
 
-    for amt_id in unique_ids:
+    for amt_id in unique_ids[:2]:
         subs = [header] + lines_startswith(lines, amt_id)
         print "Running amtStructureToStrength on " + amt_id
         with tempfile.NamedTemporaryFile() as temp:
@@ -77,4 +81,5 @@ if __name__ == '__main__':
     # Sanitize output by removing duplicates, then removing the first loading
     # messages
     out_lines = unique(out_lines)
-    print out_lines
+    with open(args.outfile, 'w') as fout:
+        fout.write('\n'.join(out_lines))

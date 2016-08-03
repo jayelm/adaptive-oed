@@ -50,11 +50,7 @@ var conditional = function(jpd, ids, a, cond) {
 var nodes = ['bright', 'on', 'hot'];
 
 // Get name of file
-console.log('processargv');
-console.log(process.argv[2]);
 var data = fs.readFileSync(process.argv[2], 'utf8');
-console.log(data);
-console.log('done');
 
 var cols = [
     'mScore', 'amt_id', 'm', 'aWeights', 'aPriors', 'jpd', 'amt_trial',

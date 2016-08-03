@@ -53,10 +53,19 @@ var nodes = ['bright', 'on', 'hot'];
 var data = fs.readFileSync(process.argv[2], 'utf8');
 
 var cols = [
-    'mScore', 'amt_id', 'm', 'aWeights', 'aPriors', 'jpd', 'amt_trial',
+    'mScore', 'amt_id', 'm', 'aWeights', 'aPriors', 'amt_trial',
     'xText', 'xType', 'xA', 'xCond', 'EIG', 'y', 'mY', 'alternate',
-    'repeat', 'domain'
+    'repeat', 'domain',
+    '[false,false,false]',
+    '[false,false,true]',
+    '[false,true,false]',
+    '[false,true,true]',
+    '[true,false,false]',
+    '[true,false,true]',
+    '[true,true,false]',
+    '[true,true,true]'
 ];
+
 
 var logRow = function(args) {
     if (args === null) {
@@ -142,14 +151,22 @@ csv.parse(data, {delimiter: '\t', quote: '', escape: ''}, function(err, data) {
                 conditional(jpd, ids, x.a, x.cond) :
                 marginal(jpd, ids, x.a);
 
+            var jpdObj = _.object(
+                _.map(jpd, function(row) {
+                    return JSON.stringify(row[0]);
+                }),
+                _.map(jpd, function(row) {
+                    return row[1];
+                })
+            );
+
             // Log this trial
-            logRow({
+            var stdObj = {
                 mScore: score,
                 amt_id: lastObj.amt_id,
                 m: lastObj.mMax,
                 aWeights: JSON.stringify(aWeights),
                 aPriors: JSON.stringify(aPriors),
-                jpd: JSON.stringify(jpd),
                 amt_trial: currObj.amt_trial,
                 xText: x.name,
                 xType: x.type,
@@ -161,7 +178,9 @@ csv.parse(data, {delimiter: '\t', quote: '', escape: ''}, function(err, data) {
                 alternate: currObj.alternate,
                 repeat: currObj.repeat,
                 domain: lastObj.domain
-            });
+            };
+
+            logRow(_.extend(stdObj, jpdObj));
 
             var res = aoed.update(prior, x, yObj, args);
             prior = res.mPosterior;

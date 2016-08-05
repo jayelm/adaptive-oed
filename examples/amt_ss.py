@@ -61,7 +61,7 @@ if __name__ == '__main__':
     out_lines = []
 
     for amt_id in unique_ids:
-        subs = [header] + lines_startswith(lines, amt_id)
+        subs = [header] + (lines_startswith(lines, amt_id) * 2)
         print "Running amtStructureToStrength on " + amt_id
         with tempfile.NamedTemporaryFile() as temp:
             temp.write('\n'.join(subs))

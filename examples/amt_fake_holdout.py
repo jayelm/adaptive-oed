@@ -109,6 +109,7 @@ def marginal(jpd, ids, a):
 
 if __name__ == '__main__':
     from argparse import ArgumentParser
+    import sys
     parser = ArgumentParser()
 
     parser.add_argument(
@@ -195,3 +196,4 @@ if __name__ == '__main__':
         }
         exp_y = compute_exp(holdout_x, ids, jpd)
         print '\t'.join(map(str, holdout.values() + [obs_y, exp_y]))
+        sys.stdout.flush()

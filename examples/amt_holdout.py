@@ -10,7 +10,6 @@ designate it as holdout.
 3. Use JPD to predict holdout queston.
 """
 
-import pandas as pd
 import json
 import tempfile
 import subprocess
@@ -38,6 +37,10 @@ def lines_startswith(lines, phrase):
 
 
 def filter_holdout(header, body):
+    """
+    Different for amt_holdout vs amt_fake_holdout -
+    last question is always the holdout Q
+    """
     header = header.split('\t')
     body = map(
         lambda r: r.split('\t'),
@@ -47,26 +50,12 @@ def filter_holdout(header, body):
         lambda row: OrderedDict(zip(header, row)),
         body
     )
-    # print objs
-    num_xs = Counter(map(itemgetter('xText'), objs))
-    min_x = min(num_xs, key=num_xs.get)
-    if num_xs[min_x] > 1:
-        print "Warning: Minimum for {} is {} with {} trials".format(
-            objs[0]['amt_id'], min_x, num_xs[min_x]
-        )
+
     # Drop min_x from results
-    objs_dropped = filter(
-        lambda obj: obj['xText'] != min_x,
-        # Increase number of questions 2x
-        objs + copy.deepcopy(objs)
-    )
+    objs_dropped = objs[:-1]
+    holdout = objs[-1]
 
-    holdout = filter(
-        lambda obj: obj['xText'] == min_x,
-        objs
-    )[0]
-
-    # Now reassign 
+    # Now reassign
     for index, obj in enumerate(objs_dropped):
         obj['amt_trial'] = index + 1  # Start from one
 
@@ -123,10 +112,6 @@ if __name__ == '__main__':
         'tsvfile',
         help="trialdata tsv file (generated from csli/experiments directory)"
     )
-    #  parser.add_argument(
-        #  'outfile',
-        #  help="File to write to"
-    #  )
 
     args = parser.parse_args()
 
@@ -156,7 +141,6 @@ if __name__ == '__main__':
 
         subs = [new_header] + new_body
 
-        print "Running amtStructureToStrength on " + amt_id
         with tempfile.NamedTemporaryFile() as temp:
             temp.write('\n'.join(subs))
             temp.flush()
@@ -203,4 +187,5 @@ if __name__ == '__main__':
         }
         exp_y = compute_exp(holdout_x, ids, jpd)
         print '\t'.join(map(str, holdout.values() + [obs_y, exp_y]))
+        print jpd
         sys.stdout.flush()

@@ -467,10 +467,8 @@ var infrastructure = function() {
             // FIXME: Assumes rest.length is 2
             var condAmt = sample(Categorical({
                 vs: [1, 2],
-                ps: [.6, .4]
+                ps: [0.6, 0.4]
             }));
-            console.log(condAmt);
-            console.log('logged');
             // var condAmt = 1; // If we just want to condition on 1 thing
             // Assign random varible to each rest
             var condNodes = sampleN(rest, condAmt);
@@ -490,6 +488,10 @@ var infrastructure = function() {
             };
         }
     };
+
+    // Holdout question. Retrieve in experiment task.js if doing holdout;
+    // otherwise feel free to ignore
+    var heldout = xSample();
 
     var ySample = function(x) {
         if (x.type === 'structure') {

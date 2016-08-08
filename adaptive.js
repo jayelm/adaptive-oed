@@ -64,6 +64,27 @@ var makeSkeleton = function(infraThunk) {
             return eigs.support();
         },
 
+        // Exactly like suggestAll, but returns the full experiment marginal
+        // with probabilities, in case probabilities of sampling Xs matter
+        suggestAllWithProbs: function() {
+            var mPrior = globalStore.mPrior,
+                usePredictiveY = globalStore.usePredictiveY,
+                returnKL = globalStore.returnKL,
+                cache = globalStore.cache;
+
+            var eigs = EIG({
+                mPrior: mPrior,
+                X: args.X,
+                Y: args.Y,
+                infer: args.infer,
+                usePredictiveY: usePredictiveY,
+                returnKL: returnKL,
+                cache: cache
+            });
+
+            return eigs;
+        },
+
         updateBeliefs: function() {
             var x = globalStore.x,
                 y = globalStore.y,
@@ -120,6 +141,7 @@ var compileSkeleton = function(skeleton) {
     // Individual functions
     var suggestStr = getThunkBody(skeleton.suggestExperiment);
     var suggestAllStr = getThunkBody(skeleton.suggestAll);
+    var suggestAllProbsStr = getThunkBody(skeleton.suggestAllWithProbs);
     var updateStr = getThunkBody(skeleton.updateBeliefs);
     var initialStr = getThunkBody(skeleton.initializePrior);
     var cacheStr = getThunkBody(skeleton.cache);
@@ -129,6 +151,7 @@ var compileSkeleton = function(skeleton) {
     var updateSrc = webppl.compile(commonStr + updateStr);
     var initialSrc = webppl.compile(commonStr + initialStr);
     var suggestAllSrc = webppl.compile(commonStr + suggestAllStr);
+    var suggestAllProbsSrc = webppl.compile(commonStr + suggestAllProbsStr);
     var cacheSrc = webppl.compile(commonStr + cacheStr);
 
     var handleRunError = function(e) {
@@ -182,6 +205,20 @@ var compileSkeleton = function(skeleton) {
         return res.returnValue;
     };
     aoed.suggestAll = suggestAll;
+
+    var suggestAllWithProbs = function(mPrior, args) {
+        var globalStore = {
+            mPrior: mPrior,
+            usePredictiveY: !!args.usePredictiveY,
+            returnKL: !!args.returnKL,
+            cache: args.cache
+        };
+        var _code = eval.call({}, suggestAllProbsSrc)(runner);
+        var res = {};
+        _code(globalStore, makeStoreFunc(res), '');
+        return res.returnValue;
+    };
+    aoed.suggestAllWithProbs = suggestAllWithProbs;
 
     var update = function(mPrior, x, y, opts) {
         var globalStore = {

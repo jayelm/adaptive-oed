@@ -448,6 +448,9 @@ var infrastructure = function() {
             };
         } else if (xType === 'marginal') {
             var a = uniformDraw(nodes);
+            // Messed around and set this s.t. marginals and conditionals are
+            // favored equally if taking into account weighted computations
+            factor(-1.5);
             return {
                 type: xType,
                 a: a,
@@ -461,7 +464,14 @@ var infrastructure = function() {
             var rest = _.without(nodes, a);
             // How many other variables to condition on
             // var condAmt = randomInteger(rest.length) + 1;
-            var condAmt = 1; // If we just want to condition on 1 thing
+            // FIXME: Assumes rest.length is 2
+            var condAmt = sample(Categorical({
+                vs: [1, 2],
+                ps: [.6, .4]
+            }));
+            console.log(condAmt);
+            console.log('logged');
+            // var condAmt = 1; // If we just want to condition on 1 thing
             // Assign random varible to each rest
             var condNodes = sampleN(rest, condAmt);
             var cond = _.object(

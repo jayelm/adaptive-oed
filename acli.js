@@ -9,20 +9,24 @@ var runCLI = function(aoed, args) {
         }
         console.log(prior.MAP());
 
-        var expts = aoed.suggestAll(prior, args);
+        var expts = aoed.suggestAllWithProbs(prior, args);
         if (args.verbose) {
             // Log all expts except ignore KLDist
-            for (var i = 0; i < expts.length; i++) {
-                var expt = expts[i];
-                console.log(expt.x, "(" + expt.EIG + ")");
-            }
+            // for (var i = 0; i < expts.length; i++) {
+                // var expt = expts[i];
+                // console.log(expt.x, "(" + expt.EIG + ")");
+            // }
+            console.log(expts);
         }
-        // Get best experiment manually, so that we can display all of them if
-        // wanted ^
-        var bestExpt = {x: null, EIG: -Infinity};
-        for (var j = 0; j < expts.length; j++) {
-            var expt2 = expts[j];
-            if (expt2.EIG > bestExpt.EIG) {
+
+        exptsSupport = expts.support();
+
+        // Find WEIGHTED eig
+        var bestExpt = {x: null, EIG: -Infinity, weightedEIG: -Infinity};
+        for (var j = 0; j < exptsSupport.length; j++) {
+            var expt2 = exptsSupport[j];
+            expt2.weightedEIG = expt2.EIG * Math.exp(expts.score(expt2));
+            if (expt2.weightedEIG > bestExpt.weightedEIG) {
                 bestExpt = expt2;
             }
         }

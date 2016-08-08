@@ -8,7 +8,7 @@ var cache = require('../cache/structureTenths.js');
 
 var args = {
     usePredictiveY: true,
-    returnKL: true,
+    returnKL: false,
     verbose: true,
     cache: cache
 };

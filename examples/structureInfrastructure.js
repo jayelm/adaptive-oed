@@ -489,10 +489,6 @@ var infrastructure = function() {
         }
     };
 
-    // Holdout question. Retrieve in experiment task.js if doing holdout;
-    // otherwise feel free to ignore
-    var heldout = xSample();
-
     var ySample = function(x) {
         if (x.type === 'structure') {
             var y = uniformDraw([-1, 0, 1]);

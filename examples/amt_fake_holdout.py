@@ -16,6 +16,7 @@ import tempfile
 import subprocess
 from collections import Counter, OrderedDict
 from operator import itemgetter
+import copy
 
 
 def unique(seq):
@@ -56,7 +57,8 @@ def filter_holdout(header, body):
     # Drop min_x from results
     objs_dropped = filter(
         lambda obj: obj['xText'] != min_x,
-        objs
+        # Increase number of questions 2x
+        objs + copy.deepcopy(objs)
     )
 
     holdout = filter(

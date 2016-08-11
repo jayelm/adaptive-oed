@@ -167,7 +167,7 @@ if __name__ == '__main__':
             'name': json.loads(holdout['xText']),
             'type': json.loads(holdout['xType']),
             'a': json.loads(holdout['xA']),
-            'cond': ('xCond' in holdout) and json.loads(holdout['xCond'])
+            'cond': ('xCond' in holdout) and json.loads(json.loads(holdout['xCond']))
         }
         jpd_names = map(
             json.loads,

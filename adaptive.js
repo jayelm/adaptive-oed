@@ -163,6 +163,7 @@ var compileSkeleton = function(skeleton) {
 
     // Need to get a container to store return values
     // XXX: Not sure if this will cause an asynchronous problem?
+    // After plenty of testing, it doesn't seem to
     // result -> ((store, returnValue) -> ())
     // side effect of return value func: result has returnValue property
     var makeStoreFunc = function(res) {
@@ -173,11 +174,6 @@ var compileSkeleton = function(skeleton) {
 
     var aoed = {};
 
-    // XXX: If you need to add any more arguments just switch to using an args
-    // object. Right now this maintains backwards compatibility with other
-    // suggest calls, since if usePredictiveY is unspecified, !!undefined is
-    // false. Then make sure to update other calls to suggest in
-    // examples/runCLI
     var suggest = function(mPrior, args) {
         var globalStore = {
             mPrior: mPrior,
@@ -243,9 +239,9 @@ var compileSkeleton = function(skeleton) {
     };
     aoed.cache = cache;
 
-    // Functions for compiling and running arbitrary code
+    // Functions for compiling and running arbitrary code with infrastructure
+    // and utils
     var compile = function(wpplStr) {
-        // Add infrastructure and utils
         return webppl.compile(commonStr + wpplStr);
     };
     aoed.compile = compile;
